@@ -30,13 +30,10 @@ return {
         },
         Transform = {
             Translation = {
-                Type = "SpiceEphemeris",
+                Type = "SpiceTranslation",
                 Body = "URANUS BARYCENTER",
-                Reference = "ECLIPJ2000",
                 Observer = "SUN",
-                Kernels = {
-                    "${OPENSPACE_DATA}/spice/de430_1850-2150.bsp"
-                }
+                Kernels = "${OPENSPACE_DATA}/spice/de430_1850-2150.bsp"
             },
             Rotation = {
                 Type = "SpiceRotation",
@@ -48,7 +45,6 @@ return {
                 Scale = 1,
             },
         },
-        GuiName = "/Solar/Planets/Uranus"
     },
     -- UranusTrail module
     {   
@@ -69,6 +65,5 @@ return {
                 -- need to add different texture
             },  
         },
-        GuiName = "/Solar/UranusTrail"
     }
 }

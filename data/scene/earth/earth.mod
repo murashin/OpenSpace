@@ -31,13 +31,10 @@ return {
         },
         Transform = {
             Translation = {
-                Type = "SpiceEphemeris",
+                Type = "SpiceTranslation",
                 Body = "EARTH",
-                Reference = "ECLIPJ2000",
                 Observer = "SUN",
-                Kernels = {
-                    "${OPENSPACE_DATA}/spice/de430_1850-2150.bsp"
-                }
+                Kernels = "${OPENSPACE_DATA}/spice/de430_1850-2150.bsp"
             },
             Rotation = {
                 Type = "SpiceRotation",
@@ -76,7 +73,12 @@ return {
             Size = {3.0, 11.0},
             Origin = "Center",
             Billboard = true,
-            Texture = "textures/marker.png"
+            Texture = "textures/marker.png",
+            BlendMode = "Additive"
+        },
+		Ephemeris = {
+            Type = "Static",
+            Position = {0, 0, 0, 5}
         }
     }
     ]]

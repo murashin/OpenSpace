@@ -26,8 +26,10 @@
 #define __SCENEGRAPHNODE_H__
 
 // open space includes
+#include <openspace/documentation/documentation.h>
+
 #include <openspace/rendering/renderable.h>
-#include <openspace/scene/ephemeris.h>
+#include <openspace/scene/translation.h>
 #include <openspace/scene/rotation.h>
 #include <openspace/scene/scale.h>
 #include <openspace/properties/propertyowner.h>
@@ -101,10 +103,12 @@ public:
 
     // @TODO Remove once the scalegraph is in effect ---abock
     
-    void setEphemeris(Ephemeris* eph) {
-        delete _ephemeris;
-        _ephemeris = eph;
+    void setEphemeris(Translation* eph) {
+        delete _translation;
+        _translation = eph;
     }
+
+    static documentation::Documentation Documentation();
 
 private:
     bool sphereInsideFrustum(const psc& s_pos, const PowerScaledScalar& s_rad, const Camera* camera);
@@ -125,7 +129,7 @@ private:
     PowerScaledScalar _boundingSphere;
 
     // Transformation defined by ephemeris, rotation and scale
-    Ephemeris* _ephemeris;
+    Translation* _translation;
     Rotation* _rotation;
     Scale* _scale;
 
