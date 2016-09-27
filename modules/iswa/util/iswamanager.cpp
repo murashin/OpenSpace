@@ -84,15 +84,16 @@ IswaManager::IswaManager()
     _geom[CygnetGeometry::Plane] = "Plane";
     _geom[CygnetGeometry::Sphere] = "Sphere";
 
-    OsEng.downloadManager().fetchFile(
+    using DlManager = openspace::DownloadManager;
+    
+    DlManager::download(
         "http://iswa3.ccmc.gsfc.nasa.gov/IswaSystemWebApp/CygnetHealthServlet",
-        [this](const DownloadManager::MemoryFile& file){
-            fillCygnetInfo(std::string(file.buffer));
-        },
-        [](const std::string& err){
-            LWARNING("Download to memory was aborted: " + err);
+        0,
+        DlManager::ProgressCallbackMemory(),
+        [this](const DownloadManager::MemoryFile& file) {
+            fillCygnetInfo(std::string(file.buffer.data(), file.buffer.size()));
         }
-    );
+    )();
 }
 
 IswaManager::~IswaManager(){
@@ -127,7 +128,7 @@ void IswaManager::addIswaCygnet(int id, std::string type, std::string group){
         [this, metaFuture](const DownloadManager::MemoryFile& file){
             //Create a string from downloaded file
             std::string res;
-            res.append(file.buffer, file.size);
+            res.append(file.buffer.data(), file.buffer.size());
             //add it to the metafuture object
             metaFuture->json = res;
 
@@ -146,13 +147,21 @@ void IswaManager::addIswaCygnet(int id, std::string type, std::string group){
         };
 
         // Download metadata
-        OsEng.downloadManager().fetchFile(
+        using DlManager = openspace::DownloadManager;
+        DlManager::download(
             baseUrl + std::to_string(-id),
-            metadataCallback,
-            [id](const std::string& err){
-                LDEBUG("Download to memory was aborted for data cygnet with id "+ std::to_string(id)+": " + err);
-            }
-        );
+            0,
+            DlManager::ProgressCallbackMemory(),
+            metadataCallback
+        )();
+
+        //OsEng.downloadManager().fetchFile(
+        //    baseUrl + std::to_string(-id),
+        //    metadataCallback,
+        //    [id](const std::string& err){
+        //        LDEBUG("Download to memory was aborted for data cygnet with id "+ std::to_string(id)+": " + err);
+        //    }
+        //);
     }
 }
 
@@ -169,20 +178,41 @@ void IswaManager::addKameleonCdf(std::string groupName, int pos){
     createKameleonPlane(_cdfInformation[groupName][pos], "x");
 }
 
-std::future<DownloadManager::MemoryFile> IswaManager::fetchImageCygnet(int id, double timestamp){
-    return std::move(OsEng.downloadManager().fetchFile(
-            iswaUrl(id, timestamp, "image"),
-            [id](const DownloadManager::MemoryFile& file){
-                LDEBUG("Download to memory finished for image cygnet with id: " + std::to_string(id));
-            },
-            [id](const std::string& err){
-                LDEBUG("Download to memory was aborted for image cygnet with id "+ std::to_string(id)+": " + err);
-            }
-        ) );   
+std::future<DownloadManager::MemoryFile> IswaManager::fetchCygnet(int id, double t, std::string name) {
+    using DlManager = openspace::DownloadManager;
+
+    auto task = DlManager::download(
+        iswaUrl(id, t, std::move(name)),
+        0,
+        DlManager::ProgressCallbackMemory(),
+        [id](const DownloadManager::MemoryFile& file) {
+            LDEBUG("Download to memory finished for image cygnet with id: " + std::to_string(id));
+        }
+    );
+
+    auto future = task.get_future();
+    task();
+    return std::move(future);
+}
+
+std::future<DownloadManager::MemoryFile> IswaManager::fetchImageCygnet(int id, double timestamp) {
+    return fetchCygnet(id, timestamp, "image");
+
+    //return std::move(OsEng.downloadManager().fetchFile(
+    //        iswaUrl(id, timestamp, "image"),
+    //        [id](const DownloadManager::MemoryFile& file){
+    //            LDEBUG("Download to memory finished for image cygnet with id: " + std::to_string(id));
+    //        },
+    //        [id](const std::string& err){
+    //            LDEBUG("Download to memory was aborted for image cygnet with id "+ std::to_string(id)+": " + err);
+    //        }
+    //    ) );   
 }
 
 std::future<DownloadManager::MemoryFile> IswaManager::fetchDataCygnet(int id, double timestamp){
-    return std::move(OsEng.downloadManager().fetchFile(
+    return fetchCygnet(id, timestamp, "data");
+    
+    /*return std::move(OsEng.downloadManager().fetchFile(
             iswaUrl(id, timestamp, "data"),
             [id](const DownloadManager::MemoryFile& file){
                 LDEBUG("Download to memory finished for data cygnet with id: " + std::to_string(id));
@@ -190,7 +220,7 @@ std::future<DownloadManager::MemoryFile> IswaManager::fetchDataCygnet(int id, do
             [id](const std::string& err){
                 LDEBUG("Download to memory was aborted for data cygnet with id "+ std::to_string(id)+": " + err);
             }
-        ) );   
+        ) ); */  
 }
 
 std::string IswaManager::iswaUrl(int id, double timestamp, std::string type){
@@ -260,17 +290,30 @@ std::map<std::string, std::vector<CdfInfo>>& IswaManager::cdfInformation(){
 std::shared_ptr<MetadataFuture> IswaManager::downloadMetadata(int id){
     std::shared_ptr<MetadataFuture> metaFuture = std::make_shared<MetadataFuture>();
 
-    metaFuture->id = id;
-    OsEng.downloadManager().fetchFile(
+    using DlManager = openspace::DownloadManager;
+
+    DlManager::download(
         baseUrl + std::to_string(-id),
-        [&metaFuture](const DownloadManager::MemoryFile& file){
-            metaFuture->json = std::string(file.buffer, file.size);
+        0,
+        DlManager::ProgressCallbackMemory(),
+        [&metaFuture](const DownloadManager::MemoryFile& file) {
+            metaFuture->json = std::string(file.buffer.data(), file.buffer.size());
             metaFuture->isFinished = true;
-        },
-        [](const std::string& err){
-            LWARNING("Download Metadata to memory was aborted: " + err);
         }
-    );
+    )();
+
+
+    metaFuture->id = id;
+    //OsEng.downloadManager().fetchFile(
+    //    baseUrl + std::to_string(-id),
+    //    [&metaFuture](const DownloadManager::MemoryFile& file){
+    //        metaFuture->json = std::string(file.buffer, file.size);
+    //        metaFuture->isFinished = true;
+    //    },
+    //    [](const std::string& err){
+    //        LWARNING("Download Metadata to memory was aborted: " + err);
+    //    }
+    //);
     return metaFuture;
 }
 

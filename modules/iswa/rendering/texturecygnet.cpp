@@ -41,11 +41,11 @@ TextureCygnet::TextureCygnet(const ghoul::Dictionary& dictionary)
 TextureCygnet::~TextureCygnet(){}
 
 bool TextureCygnet::updateTexture() {
-
-    std::unique_ptr<ghoul::opengl::Texture> texture = ghoul::io::TextureReader::ref().loadTexture(
-                                                        (void*) _imageFile.buffer,
-                                                        _imageFile.size, 
-                                                        _imageFile.format);
+    auto texture = ghoul::io::TextureReader::ref().loadTexture(
+        (void*) _imageFile.buffer.data(),
+        _imageFile.buffer.size(), 
+        _imageFile.contentType
+    );
 
     if (texture) {
         LDEBUG("Loaded texture from image iswa cygnet with id: '" << _data->id << "'");
@@ -80,15 +80,13 @@ bool TextureCygnet::updateTextureResource(){
 
     // if The future is done then get the new imageFile
     DownloadManager::MemoryFile imageFile;
-    if(_futureObject.valid() && DownloadManager::futureReady(_futureObject)){
+    if (_futureObject.valid() && std::is_ready(_futureObject)){
         imageFile = _futureObject.get();
 
-        if(imageFile.corrupted){
-            if(imageFile.buffer)
-                delete[] imageFile.buffer;
+        if (!imageFile.errorMessage.empty()){
             return false;
         } else {
-            _imageFile = imageFile;
+            _imageFile = std::move(imageFile);
         }
     } else {
         return false;

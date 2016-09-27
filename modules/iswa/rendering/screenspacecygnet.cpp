@@ -82,7 +82,7 @@ void ScreenSpaceCygnet::update(){
         _lastUpdateOpenSpaceTime = _openSpaceTime;
     }
 
-    if(_futureImage.valid() && DownloadManager::futureReady(_futureImage)) {
+    if(_futureImage.valid() && std::is_ready(_futureImage)) {
         loadTexture();
     }
 }

@@ -117,11 +117,12 @@ bool DataCygnet::downloadTextureResource(double timestamp){
 bool DataCygnet::updateTextureResource(){
     DownloadManager::MemoryFile dataFile = _futureObject.get();
 
-     if(dataFile.corrupted)
+    if (!dataFile.errorMessage.empty()) {
         return false;
+    }
 
-    _dataBuffer = std::string(dataFile.buffer, dataFile.size);
-    delete[] dataFile.buffer;
+    _dataBuffer = std::string(dataFile.buffer.data(), dataFile.buffer.size());
+    //delete[] dataFile.buffer;
 
     return true;
 }

@@ -185,7 +185,7 @@ void IswaCygnet::update(const UpdateData& data){
     bool timeToUpdate = (fabs(_openSpaceTime-_lastUpdateOpenSpaceTime) >= _data->updateTime &&
                         (_realTime.count()-_lastUpdateRealTime.count()) > _minRealTimeUpdateInterval);
 
-    if(_futureObject.valid() && DownloadManager::futureReady(_futureObject)) {
+    if(_futureObject.valid() && std::is_ready(_futureObject)) {
         bool success = updateTextureResource();
         if(success)
             _textureDirty = true;
