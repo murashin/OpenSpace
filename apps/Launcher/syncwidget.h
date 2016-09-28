@@ -38,7 +38,10 @@
 #include <atomic>
 
 class QBoxLayout;
+class QCheckBox;
 class QGridLayout;
+class QLabel;
+class QScrollArea;
 
 class InfoWidget;
 
@@ -64,6 +67,8 @@ private slots:
 private:
     void clear();
     QStringList selectedScenes() const;
+    void setStatus(QString message);
+    void setNumbering(int i, int n);
 
     struct UpdateInformation {
         std::string errorMessage;
@@ -78,6 +83,13 @@ private:
     QString _modulesDirectory;
     QGridLayout* _sceneLayout;
     QBoxLayout* _downloadLayout;
+
+    QCheckBox* _useTorrents;
+
+    QLabel* _statusInformation;
+    QLabel* _statusNumbering;
+
+    QScrollArea* _widgetsArea;
 
     std::unique_ptr<libtorrent::session> _session;
     QMap<libtorrent::torrent_handle, InfoWidget*> _torrentInfoWidgetMap;

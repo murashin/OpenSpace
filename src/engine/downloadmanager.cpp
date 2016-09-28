@@ -96,6 +96,10 @@ namespace {
         std::string line;
         std::stringstream ss(reqFile);
         while (std::getline(ss, line)) {
+            // The last line might have an extra newline at the end
+            line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+
             res.push_back(line);
         }
 
@@ -318,6 +322,21 @@ std::vector<std::string> DownloadManager::requestFiles(const std::string& identi
 
     return fileUrls;
 }
+
+std::string DownloadManager::directTorrentDownloadBaseUrl() {
+    // I know that this does not request files, but I haven't found a better name yet
+    std::vector<std::string> directTorrentUrl = requestFiles(
+        "torrent_direct",
+        1
+    );
+
+    if (directTorrentUrl.size() != 1) {
+        throw DownloadException("Direct torrent URL script returned more than one line");
+    }
+
+    return directTorrentUrl[0];
+}
+
 
 std::string DownloadManager::request(const std::string& url, const std::string& identfier, int version) const {
     const std::string RequestIdentifier = "identifier";

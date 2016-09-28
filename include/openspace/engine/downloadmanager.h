@@ -26,6 +26,7 @@
 #define __DOWNLOADMANAGER_H__
 
 #include <ghoul/filesystem/directory.h>
+#include <ghoul/misc/boolean.h>
 #include <ghoul/misc/exception.h>
 
 #include <chrono>
@@ -44,10 +45,7 @@ namespace openspace {
 
 class DownloadManager {
 public:
-    enum class OverrideFiles {
-        Yes = 0,
-        No
-    };
+    using OverrideFiles = ghoul::Boolean;
 
     struct DownloadException : public ghoul::RuntimeError {
         explicit DownloadException(std::string msg);
@@ -124,6 +122,10 @@ public:
         const std::string& identifier,
         int version
     );
+
+    // Returns the base URL for directly downloading torrent files from one of the
+    // request servers
+    std::string directTorrentDownloadBaseUrl();
 
 private:
     std::string request(const std::string& url, const std::string& identfier, int version) const;

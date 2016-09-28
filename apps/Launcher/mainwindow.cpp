@@ -189,7 +189,7 @@ void MainWindow::initialize() {
     _syncWidget->setWindowModality(Qt::WindowModal);
     _syncWidget->hide();
 
-    ghoul::logging::LogManager::initialize(ghoul::logging::LogManager::LogLevel::Debug);
+    ghoul::logging::LogManager::initialize(ghoul::logging::LogManager::LogLevel::Info);
     LogMgr.addLog( std::make_unique< ghoul::logging::ConsoleLog >() );
     // TODO: This can crash the system in cases where the logfile can't be created ---abock
     LogMgr.addLog( std::make_unique< ghoul::logging::HTMLLog >("LauncherLog.html", ghoul::logging::HTMLLog::Append::No) );

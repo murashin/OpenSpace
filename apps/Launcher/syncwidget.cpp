@@ -41,6 +41,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QString>
@@ -94,6 +95,46 @@ SyncWidget::SyncWidget(QWidget* parent, Qt::WindowFlags f)
         layout->addWidget(sceneBox);
     }
     {
+        QWidget* separatorLine = new QWidget;
+        separatorLine->setFixedHeight(2);
+        separatorLine->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        separatorLine->setStyleSheet(QString("background-color: #c0c0c0;"));
+        layout->addWidget(separatorLine);
+    }
+    {
+        QGroupBox* settingsBox = new QGroupBox;
+        _useTorrents = new QCheckBox("Use Torrents");
+        _useTorrents->setChecked(true);
+        QBoxLayout* settingsLayout = new QVBoxLayout;
+        settingsLayout->addWidget(_useTorrents);
+
+        settingsBox->setLayout(settingsLayout);
+        layout->addWidget(settingsBox);
+    }
+    {
+        QWidget* separatorLine = new QWidget;
+        separatorLine->setFixedHeight(2);
+        separatorLine->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        separatorLine->setStyleSheet(QString("background-color: #c0c0c0;"));
+        layout->addWidget(separatorLine);
+    }
+    {
+        QWidget* container = new QWidget;
+        QBoxLayout* l = new QHBoxLayout;
+        container->setLayout(l);
+
+        QLabel* status = new QLabel("Status:");
+        l->addWidget(status);
+
+        _statusInformation = new QLabel;
+        l->addWidget(_statusInformation);
+
+        _statusNumbering = new QLabel;
+        l->addWidget(_statusNumbering);
+
+        layout->addWidget(container);
+    }
+    {
         QPushButton* syncButton = new QPushButton("Synchronize Data");
         syncButton->setObjectName("SyncButton");
         QObject::connect(
@@ -105,19 +146,19 @@ SyncWidget::SyncWidget(QWidget* parent, Qt::WindowFlags f)
     }
 
     {
-        QScrollArea* area = new QScrollArea;
-        area->setWidgetResizable(true);
+        _widgetsArea = new QScrollArea;
+        _widgetsArea->setWidgetResizable(true);
 
         QWidget* w = new QWidget;
         w->setObjectName("DownloadArea");
-        area->setWidget(w);
+        _widgetsArea->setWidget(w);
 
         _downloadLayout = new QVBoxLayout(w);
         _downloadLayout->setMargin(0);
         _downloadLayout->setSpacing(0);
         _downloadLayout->addStretch(100);
 
-        layout->addWidget(area);
+        layout->addWidget(_widgetsArea);
     }
     QPushButton* close = new QPushButton("Close");
     layout->addWidget(close, Qt::AlignRight);
@@ -223,8 +264,8 @@ void SyncWidget::setSceneFiles(QMap<QString, QString> sceneFiles) {
         const QString& sceneName = keys[i];
 
         QCheckBox* checkbox = new QCheckBox(sceneName);
-        //checkbox->setChecked(true);
-        checkbox->setChecked(sceneName == "download");
+        checkbox->setChecked(true);
+        //checkbox->setChecked(sceneName == "download");
 
         _sceneLayout->addWidget(checkbox, i / nColumns, i % nColumns);
     }
@@ -239,6 +280,11 @@ void SyncWidget::clear() {
         delete i.value();
     }
 
+    //int nChildren = _downloadLayout->count();
+    //for (int i = 0; i < nChildren; ++i) {
+    //    delete _downloadLayout->itemAt(i);
+    //}
+
     _updateInformation.clear();
     _finishedInformation.clear();
 
@@ -250,25 +296,32 @@ void SyncWidget::syncButtonPressed() {
     using DlManager = openspace::DownloadManager;
 
     auto downloadFile = [this](std::string url, std::string destination, InfoWidget* w) {
-        return DlManager::download(
-            url,
-            destination,
-            0,
-            [this, w](DlManager::File& f, size_t currentSize, size_t totalSize) {
-                std::lock_guard<std::mutex> lock(_updateInformationMutex);
-                _updateInformation[w] = {
-                    f.errorMessage,
-                    currentSize,
-                    totalSize
-                };
-            },
-            [this, w](DlManager::File& f) {
-                std::lock_guard<std::mutex> lock(_updateInformationMutex);
-                _finishedInformation.push_back(w);
-            }
-        );
+        if (w) {
+            return DlManager::download(
+                std::move(url),
+                std::move(destination),
+                0,
+                [this, w](DlManager::File& f, size_t currentSize, size_t totalSize) {
+                    std::lock_guard<std::mutex> lock(_updateInformationMutex);
+                    _updateInformation[w] = {
+                        f.errorMessage,
+                        currentSize,
+                        totalSize
+                    };
+                },
+                [this, w](DlManager::File& f) {
+                    std::lock_guard<std::mutex> lock(_updateInformationMutex);
+                    _finishedInformation.push_back(w);
+                }
+            );
+        }
+        else {
+            return DlManager::download(
+                std::move(url),
+                std::move(destination)
+            );
+        }
     };
-
 
     clear();
 
@@ -281,24 +334,121 @@ void SyncWidget::syncButtonPressed() {
         [](const QString& scene) { return scene.toStdString(); }
     );
 
+    setStatus("Loading scenes");
     DownloadCollection::Collection collection = DownloadCollection::crawlScenes(scenes);
 
     std::vector<DlManager::FileTask> result;
+    std::vector<InfoWidget*> newWidgets;
 
+    // We need this only if there are torrent files and we don't want to use torrents
+    // this is not in the inner loop as it does a synchronous downloading
+    std::string torrentBaseUrl;
+    if (!collection.torrentFiles.empty() && !_useTorrents->isChecked()) {
+        torrentBaseUrl = _downloadManager->directTorrentDownloadBaseUrl();
+    }
 
+    setEnabled(false);
+    newWidgets.reserve(
+        collection.torrentFiles.size() +
+        collection.directFiles.size() +
+        collection.fileRequests.size()
+    );
+
+    // We are dealing with torrent files first as they might get converted into direct
+    // downloads if the user specifies that they don't want to use the torrent library
+    setStatus("Loading torrent files");
+    LDEBUG("Torrent Files");
+    for (const DownloadCollection::TorrentFile& tf : collection.torrentFiles) {
+        LDEBUG(tf.file + " -> " + tf.destination);
+        setNumbering(&tf - collection.torrentFiles.data(), collection.torrentFiles.size());
+
+        ghoul::filesystem::Directory d = FileSys.currentDirectory();
+
+        FileSys.createDirectory(tf.destination, ghoul::filesystem::FileSystem::Recursive::Yes);
+        FileSys.setCurrentDirectory(tf.destination);
+
+        std::string fullFile = absPath(tf.file);
+        std::string fullDestination = absPath(tf.destination);
+
+        if (!FileSys.fileExists(fullFile)) {
+            LERROR(fmt::format("Torrent file '{}' did not exist", fullFile));
+            continue;
+        }
+
+        if (_useTorrents->isChecked()) {
+            libtorrent::error_code ec;
+            libtorrent::add_torrent_params p;
+
+            p.save_path = fullDestination;
+
+            p.ti = new libtorrent::torrent_info(fullFile, ec);
+            p.name = tf.file;
+            p.storage_mode = libtorrent::storage_mode_allocate;
+            p.auto_managed = true;
+            if (ec) {
+                LERROR(fullFile << ": " << ec.message());
+                continue;
+            }
+            libtorrent::torrent_handle h = _session->add_torrent(p, ec);
+            if (ec) {
+                LERROR(fullFile << ": " << ec.message());
+                continue;
+            }
+
+            if (_torrentInfoWidgetMap.find(h) == _torrentInfoWidgetMap.end()) {
+                InfoWidget* w = new InfoWidget(
+                    QString::fromStdString(fullFile),
+                    h.status().total_wanted
+                );
+                
+                newWidgets.push_back(w);
+                //_downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
+                _torrentInfoWidgetMap[h] = w;
+            }
+        }
+        else {
+            libtorrent::error_code ec;
+            libtorrent::torrent_info info(fullFile, ec);
+
+            int nFiles = info.num_files();
+            for (int i = 0; i < nFiles; ++i) {
+                std::string file = info.files().at(i).path;
+                std::replace(file.begin(), file.end(), '\\', '/');
+                std::string url = torrentBaseUrl + '/' + file;
+
+                DownloadCollection::DirectFile df {
+                    tf.module,
+                    std::move(url),
+                    absPath(file)
+                };
+
+                collection.directFiles.push_back(std::move(df));
+            }
+        }
+        FileSys.setCurrentDirectory(d);
+        qApp->processEvents();
+    }
+
+    setStatus("Loading direct file downloads");
     LDEBUG("Direct Files");
     for (const DownloadCollection::DirectFile& df : collection.directFiles) {
         LDEBUG(df.url + " -> " + df.destination);
+        setNumbering(&df - collection.directFiles.data(), collection.directFiles.size());
 
-        InfoWidget* w = new InfoWidget(QString::fromStdString(df.destination));
-        _downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
+        //InfoWidget* w = new InfoWidget(QString::fromStdString(df.destination));
+        //newWidgets.push_back(w);
+        //_downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
 
-        result.push_back(downloadFile(df.url, df.destination, w));
+        result.push_back(downloadFile(df.url, df.destination, nullptr));
+
+        qApp->processEvents();
     }
 
+    setStatus("Loading file requests");
     LDEBUG("File Requests");
     for (const DownloadCollection::FileRequest& fr : collection.fileRequests) {
         LDEBUG(fmt::format("{}({}) -> {}", fr.identifier, fr.identifier, fr.destination));
+        setNumbering(&fr - collection.fileRequests.data(), collection.fileRequests.size());
 
         std::vector<std::string> urls = _downloadManager->requestFiles(
             fr.identifier,
@@ -309,75 +459,61 @@ void SyncWidget::syncButtonPressed() {
             std::string file = url.substr(url.find_last_of('/') + 1);
 
             InfoWidget* w = new InfoWidget(QString::fromStdString(file));
-            _downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
+            newWidgets.push_back(w);
+            //_downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
 
             result.push_back(downloadFile(
                 url,
                 FileSys.pathByAppendingComponent(fr.destination, file),
                 w
             ));
+            qApp->processEvents();
         }
     }
 
-    LDEBUG("Torrent Files");
-    for (const DownloadCollection::TorrentFile& tf : collection.torrentFiles) {
-        LDEBUG(tf.file + " -> " + tf.destination);
-
-        ghoul::filesystem::Directory d = FileSys.currentDirectory();
-
-        FileSys.createDirectory(tf.destination, ghoul::filesystem::FileSystem::Recursive::Yes);
-        FileSys.setCurrentDirectory(tf.destination);
+    setStatus("Adding widgets");
+    _widgetsArea->setUpdatesEnabled(false);
+    int i = 0;
+    for (InfoWidget* w : newWidgets) {
+        //setNumbering(&w - newWidgets.data(), newWidgets.size());
+        setNumbering(++i, newWidgets.size());
         
-        std::string fullFile = absPath(tf.file);
-        std::string fullDestination = absPath(tf.destination);
-        
-        FileSys.setCurrentDirectory(d);
-
-        if (!FileSys.fileExists(fullFile)) {
-            LERROR(fmt::format("Torrent file '{}' did not exist", fullFile));
-            continue;
-        }
-
-        libtorrent::error_code ec;
-        libtorrent::add_torrent_params p;
-
-        p.save_path = fullDestination;
-
-        p.ti = new libtorrent::torrent_info(fullFile, ec);
-        p.name = tf.file;
-        p.storage_mode = libtorrent::storage_mode_allocate;
-        p.auto_managed = true;
-        if (ec) {
-            LERROR(fullFile << ": " << ec.message());
-            continue;
-        }
-        libtorrent::torrent_handle h = _session->add_torrent(p, ec);
-        if (ec) {
-            LERROR(fullFile << ": " << ec.message());
-            continue;
-        }
-
-        if (_torrentInfoWidgetMap.find(h) == _torrentInfoWidgetMap.end()) {
-            InfoWidget* w = new InfoWidget(
-                QString::fromStdString(fullFile),
-                h.status().total_wanted
-            );
-            _downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
-            _torrentInfoWidgetMap[h] = w;
-        }
-
+        _downloadLayout->addWidget(w);
+        //_downloadLayout->insertWidget(_downloadLayout->count() - 1, w);
     }
+    qApp->processEvents();
+    _widgetsArea->setUpdatesEnabled(true);
+    qApp->processEvents();
 
+    setStatus("Starting downloads");
     for (openspace::DownloadManager::FileTask& t : result) {
-        //qApp->processEvents();
-        //t();
-        std::thread th(std::move(t));
-        th.detach();
-    }
+        setNumbering(&t - result.data(), result.size());
+        std::thread(std::move(t)).detach();
 
+        //std::this_thread::sleep_for(std::chrono::microseconds(50));
+
+        qApp->processEvents();
+        //t();
+    }
     //for (openspace::DownloadManager::FileTask& t : result) {
     //    _threadPool.queue(std::move(t));
     //}
+
+    _statusInformation->setText("Downloading");
+    _statusNumbering->setText("");
+    setEnabled(true);
+
+
+}
+
+void SyncWidget::setStatus(QString message) {
+    _statusInformation->setText(message);
+    qApp->processEvents();
+}
+
+void SyncWidget::setNumbering(int i, int n) {
+    _statusNumbering->setText(QString::number(i) + '/' + QString::number(n));
+    qApp->processEvents();
 }
 
 QStringList SyncWidget::selectedScenes() const {
@@ -417,10 +553,12 @@ void SyncWidget::handleTimer() {
         p.first->update(p.second.currentSize, p.second.totalSize, p.second.errorMessage);
     }
 
+    //setUpdatesEnabled(false);
     for (InfoWidget* w : finishedInformation) {
         _downloadLayout->removeWidget(w);
         delete w;
     }
+    //setUpdatesEnabled(true);
 
     std::vector<torrent_handle> handles = _session->get_torrents();
     for (torrent_handle h : handles) {
