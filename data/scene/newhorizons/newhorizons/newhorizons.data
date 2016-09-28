@@ -5,6 +5,7 @@ return {
     },
     TorrentFiles = {
         { File = "NewHorizonsKernels.torrent", Destination = "${SPICE}" },
-        { File = "jup260.bsp.torrent", Destination = "${SPICE}" }
+        { File = "jup260.bsp.torrent", Destination = "${SPICE}" },
+        --{ File = "nh_kernels.torrent", Destination = "${SPICE}" }
     }
 }

@@ -323,17 +323,24 @@ void RenderablePlanetProjection::render(const RenderData& data) {
         }
         _capture = false;
     }
-    attitudeParameters(_time);
+    try {
+        attitudeParameters(_time);
+    }
+    catch (const SpiceManager::SpiceException&) {}
     _imageTimes.clear();
 
-    double  lt;
-    glm::dvec3 p =
-        SpiceManager::ref().targetPosition("SUN", _projectionComponent.projecteeId(), "GALACTIC", {}, _time, lt);
-    psc sun_pos = PowerScaledCoordinate::CreatePowerScaledCoordinate(p.x, p.y, p.z);
+    double lt;
+    glm::vec3 sun_pos;
+    try {
+        glm::dvec3 p =
+            SpiceManager::ref().targetPosition("SUN", _projectionComponent.projecteeId(), "GALACTIC", {}, _time, lt);
+        sun_pos = PowerScaledCoordinate::CreatePowerScaledCoordinate(p.x, p.y, p.z).vec3();
+    }
+    catch (const SpiceManager::SpiceException&) {}
 
     // Main renderpass
     _programObject->activate();
-    _programObject->setUniform("sun_pos", sun_pos.vec3());
+    _programObject->setUniform("sun_pos", sun_pos);
     //_programObject->setUniform("ViewProjection" ,  data.camera.viewProjectionMatrix());
     //_programObject->setUniform("ModelTransform" , _transform);
 
