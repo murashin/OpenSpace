@@ -159,24 +159,27 @@ vector<ModuleInformation> crawlModule(const string& module, const string& sceneP
 
         using namespace ghoul::filesystem;
 
-        Directory dir(module);
+        Directory dir(FileSys.pathByAppendingComponent(scenePath, module));
         vector<string> files = dir.readFiles(Directory::Recursive::Yes);
-        std::remove_if(
-            files.begin(), files.end(),
-            [](const string& file) {
-            return File(file).fileExtension() != "data";
-        }
+        files.erase(
+            std::remove_if(
+                files.begin(), files.end(),
+                [](const string& file) {
+                    return File(file).fileExtension() != "data";
+                }
+            ),
+            files.end()
         );
 
         std::transform(
             files.begin(), files.end(),
             std::back_inserter(result),
-            [](const string& file) -> ModuleInformation {
-            return {
-                Directory(file).path(),
-                File(file).filename(),
-            };
-        }
+            [module](const string& file) -> ModuleInformation {
+                return {
+                    module,
+                    file
+                };
+            }
         );
     }
 
@@ -375,7 +378,7 @@ std::unordered_set<DownloadCollection::TorrentFile> extractTorrents(
 
         result.insert({
             module.name,
-            std::move(file),
+            absPath(file),
             absPath(destination)
         });
     }

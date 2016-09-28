@@ -324,6 +324,8 @@ void SyncWidget::syncButtonPressed() {
         LDEBUG(tf.file + " -> " + tf.destination);
 
         ghoul::filesystem::Directory d = FileSys.currentDirectory();
+
+        FileSys.createDirectory(tf.destination, ghoul::filesystem::FileSystem::Recursive::Yes);
         FileSys.setCurrentDirectory(tf.destination);
         
         std::string fullFile = absPath(tf.file);
@@ -367,6 +369,8 @@ void SyncWidget::syncButtonPressed() {
     }
 
     for (openspace::DownloadManager::FileTask& t : result) {
+        //qApp->processEvents();
+        //t();
         std::thread th(std::move(t));
         th.detach();
     }

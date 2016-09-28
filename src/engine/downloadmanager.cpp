@@ -218,8 +218,15 @@ DownloadManager::FileTask DownloadManager::download(const std::string& url,
         file.identifier = identifier;
         file.filename = std::move(filename);
 
-
+        errno = 0;
         FILE* fp = fopen(file.filename.c_str(), "wb");
+        if (errno != 0) {
+            throw ghoul::RuntimeError(
+                "Error opening file '" + file.filename + "': " + std::to_string(errno),
+                "DownloadManager"
+            );
+        }
+
 
         CURL* curl = curl_easy_init();
         if (!curl) {
