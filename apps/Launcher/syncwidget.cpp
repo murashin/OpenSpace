@@ -312,13 +312,20 @@ void SyncWidget::syncButtonPressed() {
                 [this, w](DlManager::File& f) {
                     std::lock_guard<std::mutex> lock(_updateInformationMutex);
                     _finishedInformation.push_back(w);
+                    --_activeDownloads;
+
                 }
             );
         }
         else {
             return DlManager::download(
                 std::move(url),
-                std::move(destination)
+                std::move(destination),
+                0,
+                DlManager::ProgressCallbackFile(),
+                [this](DlManager::File&) {
+                    --_activeDownloads;
+                }
             );
         }
     };
@@ -339,6 +346,7 @@ void SyncWidget::syncButtonPressed() {
 
     std::vector<DlManager::FileTask> result;
     std::vector<InfoWidget*> newWidgets;
+    _activeDownloads = 0;
 
     // We need this only if there are torrent files and we don't want to use torrents
     // this is not in the inner loop as it does a synchronous downloading
@@ -487,17 +495,27 @@ void SyncWidget::syncButtonPressed() {
 
     setStatus("Starting downloads");
     for (openspace::DownloadManager::FileTask& t : result) {
-        setNumbering(&t - result.data(), result.size());
-        std::thread(std::move(t)).detach();
+        int i = &t - result.data();
+        setNumbering(i, result.size());
 
-        //std::this_thread::sleep_for(std::chrono::microseconds(50));
+        LINFO(_activeDownloads);
+        // Busy wait as there is hard limit of 256 open files
+        while (_activeDownloads > 50) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        //while (_downloadLayout->count() > 200) {
+        //}
+
+        //for (openspace::DownloadManager::FileTask& t : result) {
+        //    _threadPool.queue(std::move(t));
+        //}
+        std::thread(std::move(t)).detach();
+        ++_activeDownloads;
 
         qApp->processEvents();
         //t();
     }
-    //for (openspace::DownloadManager::FileTask& t : result) {
-    //    _threadPool.queue(std::move(t));
-    //}
+
 
     _statusInformation->setText("Downloading");
     _statusNumbering->setText("");

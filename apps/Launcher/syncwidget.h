@@ -98,6 +98,8 @@ private:
 
     ghoul::ThreadPool _threadPool;
 
+    // Active non-torrent downloads
+    std::atomic_int _activeDownloads;
 };
 
 #endif // __SYNCWIDGET_H__

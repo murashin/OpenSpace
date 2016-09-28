@@ -225,8 +225,9 @@ DownloadManager::FileTask DownloadManager::download(const std::string& url,
         errno = 0;
         FILE* fp = fopen(file.filename.c_str(), "wb");
         if (errno != 0) {
+            std::string error = strerror(errno);
             throw ghoul::RuntimeError(
-                "Error opening file '" + file.filename + "': " + std::to_string(errno),
+                "Error opening file '" + file.filename + "': " + error,
                 "DownloadManager"
             );
         }
