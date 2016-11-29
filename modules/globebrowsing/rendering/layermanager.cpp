@@ -77,6 +77,7 @@ namespace globebrowsing {
         addProperty(_enabled);
 
         addPropertySubOwner(_renderSettings);
+        addPropertySubOwner(_tileProvider.get());
     }
 
     Layer::~Layer(){

@@ -29,6 +29,8 @@
 #include <ghoul/opengl/texture.h>
 #include <ghoul/misc/dictionary.h>
 
+#include <openspace/properties/propertyowner.h>
+
 #include <modules/globebrowsing/tile/tiledepthtransform.h>
 #include <modules/globebrowsing/tile/tile.h>
 
@@ -50,7 +52,7 @@ namespace globebrowsing {
     * Interface for providing <code>Tile</code>s given a 
     * <code>TileIndex</code>. 
     */
-    class TileProvider {
+    class TileProvider : public properties::PropertyOwner {
     public:
 
         /**
@@ -61,10 +63,7 @@ namespace globebrowsing {
         */
         static TileProvider* createFromDictionary(const ghoul::Dictionary& dictionary);
 
-        /** 
-        * Empty default constructor 
-        */
-        TileProvider() {};
+        TileProvider();
 
         /**
         * Implementations of the TileProvider interface must implement 

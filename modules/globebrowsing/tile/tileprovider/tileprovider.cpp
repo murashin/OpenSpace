@@ -57,6 +57,10 @@ TileProvider* TileProvider::createFromDictionary(const ghoul::Dictionary& dictio
     return result;
 }
 
+TileProvider::TileProvider() {
+    setName("TileProvider");
+}
+
 TileProvider::TileProvider(const ghoul::Dictionary& dictionary) { };
 
 float TileProvider::noDataValueAsFloat() {
