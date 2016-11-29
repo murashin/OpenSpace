@@ -40,6 +40,7 @@
 #include <modules/globebrowsing/tile/tileprovider/texttileprovider.h>
 #include <modules/globebrowsing/tile/tileprovider/tileproviderbylevel.h>
 #include <modules/globebrowsing/tile/tileprovider/tileproviderbyindex.h>
+#include <modules/globebrowsing/tile/tileprovider/presentationslideprovider.h>
 
 
 namespace openspace {
@@ -71,6 +72,7 @@ void GlobeBrowsingModule::internalInitialize() {
     // Combining Tile Providers
     fTileProvider->registerClass<globebrowsing::TileProviderByLevel>("ByLevel");
     fTileProvider->registerClass<globebrowsing::TileProviderByIndex>("ByIndex");
+    fTileProvider->registerClass<globebrowsing::PresentationSlideProvider>("PresentationSlides");
 }
 
 } // namespace openspace
