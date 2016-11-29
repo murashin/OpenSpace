@@ -108,7 +108,9 @@ namespace globebrowsing {
 
     TileProvider* PresentationSlideProvider::slideProvider(){
         int maxIndex = (int)_slideProviders.size() - 1;
-        return _slideProviders[std::max(0, std::min(_slideIndex->value(), maxIndex))].get();
+        int clampedIndex = std::max(0, std::min(_slideIndex->value(), maxIndex));
+        _slideIndex->setValue(clampedIndex);
+        return _slideProviders[clampedIndex].get();
     }
     
 
