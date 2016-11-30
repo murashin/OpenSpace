@@ -71,6 +71,38 @@ return {
                         },
                         Enabled = true,
                     },
+                    --[[
+                    {
+                        Name = "TestByIndex",
+                        Type = "ByIndex",
+                        IndexTileProviders = {
+                            {
+                                TileIndex = { Level = 2, X = 0, Y = 0},
+                                TileProvider = {
+                                    Type = "SingleImage",
+                                    FilePath = "../../debugglobe/textures/test_tile.png",
+                                },
+                            },
+                            {
+                                TileIndex = { Level = 4, X = 2, Y = 3},
+                                TileProvider = {
+                                    Type = "SingleImage",
+                                    FilePath = "../../debugglobe/textures/test_tile.png",
+                                },
+                            },
+                            {
+                                TileIndex = { Level = 6, X = 8, Y = 12},
+                                TileProvider = {
+                                    Type = "SingleImage",
+                                    FilePath = "../../debugglobe/textures/earth_bluemarble.jpg",
+                                },
+                            },
+                        },
+                        DefaultProvider = {
+                            FilePath = "map_service_configs/ESRI/ESRI_Imagery_World_2D.wms",
+                        },
+                    },
+                    ]]
                     {
                         Type = "Temporal",
                         Name = "Temporal VIIRS SNPP",
@@ -126,20 +158,64 @@ return {
                         Radii = earthEllipsoid,
                         BackgroundImagePath = "../../debugglobe/textures/arrows.png",
                     },
-                    --[[{
-                        Name = "Test",
-                        Type = "LevelSpecific",
-                        LevelTileProviders = {
-                            {
-                                MaxLevel = 5,
-                                TileProvider = { Type = "TileIndex" },
-                            },
-                            {
-                                MaxLevel = 7,
-                                TileProvider = { Type = "SingleImage", FilePath = "../../debugglobe/textures/test_tile.png",},
-                            },
+                    
+                    {
+                        Name = "Presentation",
+                        Type = "PresentationSlides",
+                        TileIndex = { Level = 11, X = 1649, Y = 511},
+                        SlideProviders = {
+                            { Type = "SingleImage", FilePath = "../../presentation/01.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/02.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/03.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/04.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/05.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/06.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/07.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/08.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/09.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/10.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/11.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/12.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/13.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/14.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/15.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/16.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/17.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/18.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/19.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/20.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/21.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/22.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/23.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/24.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/25.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/26.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/27.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/28.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/29.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/30.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/31.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/32.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/33.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/34.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/35.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/36.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/37.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/38.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/39.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/40.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/41.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/42.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/43.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/44.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/45.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/46.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/47.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/48.png",},
+                            { Type = "SingleImage", FilePath = "../../presentation/49.png",},
                         },
-                    },]]
+                        DefaultProvider = { Type = "SingleImage", FilePath = "../../debugglobe/textures/black.png", },
+                    },
                 },
                 HeightLayers = {
                     {
