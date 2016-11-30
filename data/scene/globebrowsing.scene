@@ -38,8 +38,12 @@ function preInitialization()
     openspace.bindKey("p",
         'openspace.setPropertyValue("*Trail.renderable.enabled", true)'
     )
-    
 ]]
+    local presentation = "Earth.RenderableGlobe.Layers.ColorOverlays.Presentation."
+    openspace.bindKey("m", helper.property.increment(presentation .. "SlideProvider.slideIndex", 1), "Next slide")
+    openspace.bindKey("n", helper.property.decrement(presentation .. "SlideProvider.slideIndex", 1), "Previous slide")
+    openspace.bindKey("p", helper.property.invert(presentation .. "enabled"), "Toggle Presentation")
+
 end
 
 function postInitialization()
@@ -74,7 +78,8 @@ return {
     },
 
     Modules = {
-        "lodglobes",
+        --"lodglobes",
+        "lodglobes/lodearth",
         "sun",
         "stars",
         "milkyway",
