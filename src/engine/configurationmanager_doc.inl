@@ -153,14 +153,16 @@ Documentation ConfigurationManager::Documentation() {
                         // List from ScriptEngine::writeDocumentation
                         { "text", "html" }
                     ),
-                    "The type of documentation that will be written."
+                    "The type of documentation that will be written.",
+                    Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The filename that will be created on startup containing the "
                     "documentation of available Lua functions. Any existing file "
-                    "will be silently overwritten."
+                    "will be silently overwritten.",
+                    Optional::No
                 }
             }),
             "Descriptions of whether and where to create a documentation file that "
@@ -177,14 +179,16 @@ Documentation ConfigurationManager::Documentation() {
                         // List taken from Scene::writePropertyDocumentation
                         { "text", "html" }
                     ),
-                    "The type of property documentation file that is created."
+                    "The type of property documentation file that is created.",
+                    Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The file that will be created on startup containing a list of "
                     "all properties in the scene. Any existing file will be silently "
-                    "overwritten."
+                    "overwritten.",
+                    Optional::No
                 }
             }),
             "Descriptions of whether and where to create a list of all properties "
@@ -200,14 +204,16 @@ Documentation ConfigurationManager::Documentation() {
                         // List taken from ScriptEngine::writeLog
                         { "text" }
                         ),
-                        "The type of logfile that will be created."
+                        "The type of logfile that will be created.",
+                        Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The file that will be created on startup containing the log of "
                     "all Lua scripts that are executed. Any existing file (including "
-                    "the results from previous runs) will be silently overwritten."
+                    "the results from previous runs) will be silently overwritten.",
+                    Optional::No
                 }
             }),
             "Contains a log of all Lua scripts that were executed in the last "
@@ -224,14 +230,16 @@ Documentation ConfigurationManager::Documentation() {
                         { "text", "html" }
                     ),
                     "The type of keyboard binding documentation that should be "
-                    "written."
+                    "written.",
+                    Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The file that will be created on startup containing the list of "
                     "all keyboard bindings with their respective Lua scripts. Any "
-                    "previous file in this location will be silently overritten."
+                    "previous file in this location will be silently overritten.",
+                    Optional::No
                 }
             }),
             "Contains the collection of all keyboard shortcuts that were collected "
@@ -248,14 +256,16 @@ Documentation ConfigurationManager::Documentation() {
                         // List from DocumentationEngine::writeDocumentation
                         { "text", "html" }
                     ),
-                    "The type of documentation that should be written."
+                    "The type of documentation that should be written.",
+                    Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The file that will be created on startup containing this "
                     "documentation. Any previous file in this location will be silently "
-                    "overritten."
+                    "overritten.",
+                    Optional::No
                 }
             }),
             "This defines the location and type of this documentation file.",
@@ -270,19 +280,46 @@ Documentation ConfigurationManager::Documentation() {
                         // List from FactoryManager::writeDocumentation
                         { "text", "html" }
                     ),
-                    "The type of documentation that should be written."
+                    "The type of documentation that should be written.",
+                    Optional::No
                 },
                 {
                     ConfigurationManager::PartFile,
                     new StringVerifier,
                     "The file that will be created on startup containing the factory "
                     "documentation. Any previous file in this location will be silently "
-                    "overritten."
+                    "overwritten.",
+                    Optional::No
                 }
             }),
             "This defines the location and type of the factory documentation file, which "
             "shows the different types of objects that can be created in the current "
             "application configuration.",
+            Optional::Yes
+        },
+        {
+            ConfigurationManager::KeySceneLicenseDocumentation,
+            new TableVerifier({
+                {
+                    ConfigurationManager::PartType,
+                    new StringInListVerifier(
+                        // List from scenelicense.cpp::writeDocumentation
+                        { "text", "html" }
+                    ),
+                    "The type of documentation that should be written.",
+                    Optional::No
+                },
+                {
+                    ConfigurationManager::PartFile,
+                    new StringVerifier,
+                    "The file that will be created on startup containing the scene "
+                    "license information. Any previous file in this location will be "
+                    "silently overwritten.",
+                    Optional::No
+                }
+            }),
+            "The defines the location and type of the scene license documentation file, "
+            "which shows the licencing restrictions of the scene that was loaded last.",
             Optional::Yes
         },
         {

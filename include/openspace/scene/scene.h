@@ -36,6 +36,7 @@
 #include <openspace/util/updatestructures.h>
 #include <openspace/scripting/scriptengine.h>
 #include <openspace/scene/scenegraph.h>
+#include <openspace/scene/scenelicense.h>
 
 #include <ghoul/opengl/programobject.h>
 #include <ghoul/misc/dictionary.h>
@@ -97,6 +98,8 @@ public:
     SceneGraphNode* sceneGraphNode(const std::string& name) const;
 
     std::vector<SceneGraphNode*> allSceneGraphNodes() const;
+    
+    std::vector<SceneLicense> licenses() const;
 
     SceneGraph& sceneGraph();
 

@@ -127,6 +127,21 @@ void Scene::update(const UpdateData& data) {
             if (hasType && hasFile) {
                 OsEng.interactionHandler().writeKeyboardDocumentation(type, file);
             }
+            
+            const std::string SceneLicenseType =
+            ConfigurationManager::KeySceneLicenseDocumentation + '.' + ConfigurationManager::PartType;
+            
+            const std::string SceneLicenseFile =
+            ConfigurationManager::KeySceneLicenseDocumentation + '.' + ConfigurationManager::PartFile;
+            
+            bool hasSceneLicenseType = OsEng.configurationManager().hasKey(SceneLicenseType);
+            bool hasSceneLicenseFile = OsEng.configurationManager().hasKey(SceneLicenseFile);
+            if (hasSceneLicenseType && hasSceneLicenseFile) {
+                std::string type = OsEng.configurationManager().value<std::string>(SceneLicenseType);
+                std::string file = OsEng.configurationManager().value<std::string>(SceneLicenseFile);
+                
+                writeSceneLicenseDocumentation(licenses(), file, type);
+            }
 
             LINFO("Loaded " << _sceneGraphToLoad);
             _sceneGraphToLoad = "";
@@ -442,6 +457,10 @@ std::vector<SceneGraphNode*> Scene::allSceneGraphNodes() const {
     return _graph.nodes();
 }
 
+std::vector<SceneLicense> Scene::licenses() const {
+    return _graph.licenses();
+}
+    
 SceneGraph& Scene::sceneGraph() {
     return _graph;
 }

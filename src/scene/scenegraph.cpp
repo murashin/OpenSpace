@@ -46,6 +46,7 @@
 namespace {
     const std::string _loggerCat = "SceneGraph";
     const std::string _moduleExtension = ".mod";
+    const std::string _licenseExtension = ".license";
     const std::string _defaultCommonDirectory = "common";
     const std::string _commonModuleToken = "${COMMON_MODULE}";
 
@@ -218,6 +219,11 @@ bool SceneGraph::loadFromFile(const std::string& sceneDescription) {
             modulePath,
             moduleName + _moduleExtension
         );
+        
+        std::string licenseFile = FileSys.pathByAppendingComponent(
+            modulePath,
+            moduleName + _licenseExtension
+        );
 
         struct ModuleInformation {
             ghoul::Dictionary dictionary;
@@ -237,6 +243,16 @@ bool SceneGraph::loadFromFile(const std::string& sceneDescription) {
                     modulePath,
                     moduleName
                 });
+                
+                if (FileSys.fileExists(licenseFile)) {
+                    ghoul::Dictionary licenseDictionary =
+                        ghoul::lua::loadDictionaryFromFile(licenseFile);
+                    _licenses.push_back(SceneLicense(
+                        licenseDictionary,
+                        moduleName
+                    ));
+                }
+                
             }
             catch (const ghoul::lua::LuaRuntimeException& e) {
                 LERRORC(e.component, e.message);
@@ -275,6 +291,12 @@ bool SceneGraph::loadFromFile(const std::string& sceneDescription) {
                         submodulePath,
                         moduleName
                     });
+                    
+                    if (FileSys.fileExists(licenseFile)) {
+                        ghoul::Dictionary licenseDictionary =
+                        ghoul::lua::loadDictionaryFromFile(licenseFile);
+                        _licenses.push_back(SceneLicense(licenseDictionary, moduleName));
+                    }
                 }
                 catch (const ghoul::lua::LuaRuntimeException& e) {
                     LERRORC(e.component, e.message);
@@ -555,6 +577,10 @@ SceneGraph::SceneGraphNodeInternal* SceneGraph::nodeByName(const std::string& na
 
 const std::vector<SceneGraphNode*>& SceneGraph::nodes() const {
     return _topologicalSortedNodes;
+}
+    
+std::vector<SceneLicense> SceneGraph::licenses() const {
+    return _licenses;
 }
 
 SceneGraphNode* SceneGraph::rootNode() const {

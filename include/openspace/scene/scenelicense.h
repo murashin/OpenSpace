@@ -22,60 +22,37 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
  
-#ifndef __OPENSPACE_CORE___SCENEGRAPH___H__
-#define __OPENSPACE_CORE___SCENEGRAPH___H__
+#ifndef __OPENSPACE_CORE___SCENELICENSE___H__
+#define __OPENSPACE_CORE___SCENELICENSE___H__
 
-#include <openspace/scene/scenelicense.h>
+#include <openspace/documentation/documentation.h>
 
-#include <vector>
 #include <string>
+#include <vector>
+
+namespace ghoul {
+    class Dictionary;
+} // namespace ghoul
 
 namespace openspace {
 
-class SceneGraphNode;
-
-class SceneGraph {
-public:
-    SceneGraph();
-    ~SceneGraph();
-
-    void clear();
-    bool loadFromFile(const std::string& sceneDescription);
-
-    // Returns if addition was successful
-    bool addSceneGraphNode(SceneGraphNode* node);
-    bool removeSceneGraphNode(SceneGraphNode* node); 
-
-    const std::vector<SceneGraphNode*>& nodes() const;
+struct SceneLicense {
+    // module must not be empty
+    SceneLicense(const ghoul::Dictionary& dictionary, std::string module);
     
-    std::vector<SceneLicense> licenses() const;
-
-    SceneGraphNode* rootNode() const;
-    SceneGraphNode* sceneGraphNode(const std::string& name) const;
-
-private:
-    struct SceneGraphNodeInternal {
-        ~SceneGraphNodeInternal();
-
-        SceneGraphNode* node = nullptr;
-        // From nodes that are dependent on this one
-        std::vector<SceneGraphNodeInternal*> incomingEdges;
-        // To nodes that this node depends on
-        std::vector<SceneGraphNodeInternal*> outgoingEdges;
-    };
-
-    bool nodeIsDependentOnRoot(SceneGraphNodeInternal* node);
-    bool sortTopologically();
-
-    SceneGraphNodeInternal* nodeByName(const std::string& name);
-
-    SceneGraphNode* _rootNode;
-    std::vector<SceneGraphNodeInternal*> _nodes;
-    std::vector<SceneGraphNode*> _topologicalSortedNodes;
+    std::string module;
     
-    std::vector<SceneLicense> _licenses;
+    std::string name;
+    std::string attribution;
+    std::string url;
+    std::string licenseText;
+    
+    static documentation::Documentation Documentation();
 };
 
+void writeSceneLicenseDocumentation(const std::vector<SceneLicense>& licenses,
+    const std::string& file, const std::string& type);
+    
 } // namespace openspace
 
-#endif // __OPENSPACE_CORE___SCENEGRAPH___H__
+#endif // __OPENSPACE_CORE___SCENELICENSE___H__

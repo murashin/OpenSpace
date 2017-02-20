@@ -49,6 +49,7 @@
 #include <openspace/scripting/scriptscheduler.h>
 #include <openspace/scene/translation.h>
 #include <openspace/scene/scene.h>
+#include <openspace/scene/scenelicense.h>
 #include <openspace/util/factorymanager.h>
 #include <openspace/util/time.h>
 #include <openspace/util/timemanager.h>
