@@ -31,8 +31,7 @@
 
 using std::numeric_limits;
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
 #define DEFAULT_FROM_LUA_LAMBDA(TYPE, DEFAULT_VALUE)                                     \
     [](lua_State* state, bool& success) -> TYPE {                                        \
@@ -60,6 +59,9 @@ namespace properties {
         if (success) {                                                                   \
             return v;                                                                    \
         }                                                                                \
+        else {                                                                           \
+            throw ghoul::RuntimeError("Conversion error for string: " + value);          \
+        }                                                                                \
     }
 
 #define DEFAULT_TO_STRING_LAMBDA(TYPE)                                                   \
@@ -77,5 +79,4 @@ REGISTER_NUMERICALPROPERTY_SOURCE(ShortProperty, short, short(0),
                                   DEFAULT_TO_STRING_LAMBDA(short),
                                   LUA_TNUMBER);
 
-}  // namespace properties
-} // namespace openspace
+} // namespace openspace::properties

@@ -31,6 +31,7 @@
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/filesystem/filesystem>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 
 namespace {
@@ -38,15 +39,13 @@ namespace {
     const char* KeyForwardScript = "ForwardScript";
     const char* KeyBackwardScript = "BackwardScript";
     const char* KeyUniversalScript = "Script";
-}
-
-namespace openspace {
+} // namespace
 
 #include "scriptscheduler_lua.inl"
 
-namespace scripting {
+namespace openspace::scripting {
 
-openspace::Documentation ScriptScheduler::Documentation() {
+documentation::Documentation ScriptScheduler::Documentation() {
     using namespace openspace::documentation;
 
     using TimeVerifier = StringVerifier;
@@ -102,7 +101,7 @@ ScriptScheduler::ScheduledScript::ScheduledScript(const ghoul::Dictionary& dicti
     : time(-std::numeric_limits<double>::max())
 {
     std::string timeStr = dictionary.value<std::string>(KeyTime);
-    time = Time::ref().convertTime(timeStr);
+    time = Time::convertTime(timeStr);
     
     // If a universal script is specified, retrieve it and add a ; as a separator so that
     // it can be added to the other scripts
@@ -209,8 +208,8 @@ ScriptScheduler::progressTo(double newTime)
          );
         
         // How many values did we pass over?
-        int n = std::distance(_timings.begin() + prevIndex, it);
-        _currentIndex = prevIndex + n;
+        ptrdiff_t n = std::distance(_timings.begin() + prevIndex, it);
+        _currentIndex = static_cast<int>(prevIndex + n);
         
         // Update the new time
         _currentTime = newTime;
@@ -231,16 +230,15 @@ ScriptScheduler::progressTo(double newTime)
         );
         
         // How many values did we pass over?
-        int n = std::distance(it, _timings.begin() + prevIndex);
-        _currentIndex = prevIndex - n;
+        ptrdiff_t n = std::distance(it, _timings.begin() + prevIndex);
+        _currentIndex = static_cast<int>(prevIndex - n);
         
         // Update the new time
         _currentTime = newTime;
 
-        int size = _timings.size();
         return {
-            _backwardScripts.begin() + (size - prevIndex),
-            _backwardScripts.begin() + (size - _currentIndex)
+            _backwardScripts.begin() + (_timings.size() - prevIndex),
+            _backwardScripts.begin() + (_timings.size() - _currentIndex)
         };
     }
 }
@@ -294,6 +292,4 @@ LuaLibrary ScriptScheduler::luaLibrary() {
     };
 }
 
-} // namespace scripting
-
-} // namespace openspace
+} // namespace openspace::scripting

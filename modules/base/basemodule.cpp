@@ -24,6 +24,7 @@
 
 #include <modules/base/basemodule.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/rendering/screenspacerenderable.h>
 #include <openspace/util/factorymanager.h>
@@ -31,7 +32,6 @@
 #include <ghoul/misc/assert.h>
 
 #include <modules/base/rendering/renderablemodel.h>
-#include <modules/base/rendering/renderablepath.h>
 #include <modules/base/rendering/renderablesphere.h>
 #include <modules/base/rendering/renderablesphericalgrid.h>
 #include <modules/base/rendering/renderabletrailorbit.h>
@@ -52,9 +52,7 @@
 
 namespace openspace {
 
-BaseModule::BaseModule() 
-    : OpenSpaceModule("Base")
-{}
+BaseModule::BaseModule() : OpenSpaceModule(BaseModule::Name) {}
 
 void BaseModule::internalInitialize() {
     FactoryManager::ref().addFactory(
@@ -76,7 +74,6 @@ void BaseModule::internalInitialize() {
     ghoul_assert(fRenderable, "Renderable factory was not created");
 
     fRenderable->registerClass<RenderableModel>("RenderableModel");
-    fRenderable->registerClass<RenderablePath>("RenderablePath");
     fRenderable->registerClass<RenderablePlane>("RenderablePlane");
     fRenderable->registerClass<RenderableSphere>("RenderableSphere");
     fRenderable->registerClass<RenderableSphericalGrid>("RenderableSphericalGrid");
@@ -96,19 +93,25 @@ void BaseModule::internalInitialize() {
     auto fScale = FactoryManager::ref().factory<Scale>();
     ghoul_assert(fScale, "Scale factory was not created");
 
-    fScale->registerClass <StaticScale> ("StaticScale");
+    fScale->registerClass<StaticScale>("StaticScale");
 
     auto fModelGeometry = FactoryManager::ref().factory<modelgeometry::ModelGeometry>();
     ghoul_assert(fModelGeometry, "Model geometry factory was not created");
     fModelGeometry->registerClass<modelgeometry::MultiModelGeometry>("MultiModelGeometry");
 }
 
-std::vector<Documentation> BaseModule::documentations() const {
+std::vector<documentation::Documentation> BaseModule::documentations() const {
     return {
-        StaticScale::Documentation(),
-        StaticTranslation::Documentation(),
+        RenderableModel::Documentation(),
+        RenderablePlane::Documentation(),
+        RenderableSphere::Documentation(),
         RenderableTrailOrbit::Documentation(),
         RenderableTrailTrajectory::Documentation(),
+        ScreenSpaceFramebuffer::Documentation(),
+        ScreenSpaceImage::Documentation(),
+        StaticRotation::Documentation(),
+        StaticScale::Documentation(),
+        StaticTranslation::Documentation(),
         modelgeometry::ModelGeometry::Documentation(),
     };
 }

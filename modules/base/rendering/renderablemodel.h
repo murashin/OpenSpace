@@ -31,16 +31,21 @@
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 #include <openspace/properties/vector/vec3property.h>
-#include <openspace/util/updatestructures.h>
 
-#include <ghoul/opengl/programobject.h>
-#include <ghoul/opengl/texture.h>
+#include <memory>
+
+namespace ghoul::opengl {
+    class ProgramObject; 
+    class Texture;
+} // namespace ghoul::opengl
 
 namespace openspace {
 
-namespace modelgeometry {
-class ModelGeometry;
-}
+struct RenderData;
+struct UpdateData;
+
+namespace documentation { struct Documentation; }
+namespace modelgeometry { class ModelGeometry; }
 
 class RenderableModel : public Renderable {
 public:
@@ -51,38 +56,25 @@ public:
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
+    static documentation::Documentation Documentation();
 
 protected:
     void loadTexture();
 
 private:
+    std::unique_ptr<modelgeometry::ModelGeometry> _geometry;
+
     properties::StringProperty _colorTexturePath;
-    properties::BoolProperty _performFade;
-    properties::FloatProperty _fading;
+    properties::BoolProperty _performShading;
+
     std::unique_ptr<ghoul::opengl::ProgramObject> _programObject;
     std::unique_ptr<ghoul::opengl::Texture> _texture;
 
-    modelgeometry::ModelGeometry* _geometry;
-    
     glm::dmat3 _modelTransform;
-
-    float _alpha;
-    //glm::dmat3 _stateMatrix; 
-
-    //std::string _source;
-    //std::string _destination;
-    std::string _target;
-
-    //bool _isGhost;
-    int _frameCount;
-
     glm::dvec3 _sunPos;
-
-    properties::BoolProperty _performShading;
-    properties::Vec3Property _debugModelRotation;
 };
 
 }  // namespace openspace

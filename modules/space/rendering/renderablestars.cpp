@@ -24,6 +24,7 @@
 
 #include <modules/space/rendering/renderablestars.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/util/updatestructures.h>
 #include <openspace/engine/openspaceengine.h>
@@ -41,11 +42,9 @@
 #include <stdint.h>
 
 namespace {
-    static const std::string _loggerCat = "RenderableStars";
+    const char* _loggerCat = "RenderableStars";
 
     const char* KeyFile = "File";
-    const char* KeyTexture = "Texture";
-    const char* KeyColorMap = "ColorMap";
 
     const int8_t CurrentCacheVersion = 1;
 
@@ -78,11 +77,53 @@ namespace {
 
         float speed;
     };
-}
+
+    static const openspace::properties::Property::PropertyInfo PsfTextureInfo = {
+        "Texture",
+        "Point Spread Function Texture",
+        "The path to the texture that should be used as a point spread function for the "
+        "stars."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ColorTextureInfo = {
+        "ColorMap",
+        "ColorBV Texture",
+        "The path to the texture that is used to convert from the B-V value of the star "
+        "to its color. The texture is used as a one dimensional lookup function."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ColorOptionInfo = {
+        "ColorOption",
+        "Color Option",
+        "This value determines which quantity is used for determining the color of the "
+        "stars."
+    };
+
+    static const openspace::properties::Property::PropertyInfo TransparencyInfo = {
+        "Transparency",
+        "Transparency",
+        "This value is a multiplicative factor that is applied to the transparency of "
+        "all stars."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ScaleFactorInfo = {
+        "ScaleFactor",
+        "Scale Factor",
+        "This value is used as a multiplicative factor that is applied to the apparent "
+        "size of each star."
+    };
+
+    static const openspace::properties::Property::PropertyInfo MinBillboardSizeInfo = {
+        "MinBillboardSize",
+        "Min Billboard Size",
+        "This value is used as a lower limit on the size of stars that are rendered. Any "
+        "stars that have a smaller apparent size will be discarded entirely."
+    };
+}  // namespace
 
 namespace openspace {
 
-openspace::Documentation RenderableStars::Documentation() {
+documentation::Documentation RenderableStars::Documentation() {
     using namespace documentation;
     return {
         "RenderableStars",
@@ -102,20 +143,42 @@ openspace::Documentation RenderableStars::Documentation() {
                 Optional::No
             },
             {
-                KeyTexture,
+                PsfTextureInfo.identifier,
                 new StringVerifier,
-                "The path to the texture that should be used as a point spread function "
-                "for the stars. The path is relative to the location of the .mod file "
-                "and can contain file system token.",
+                PsfTextureInfo.description,
                 Optional::No
             },
             {
-                KeyColorMap,
+                ColorTextureInfo.identifier,
                 new StringVerifier,
-                "The path to the texture that is used to convert from the B-V value of "
-                "the star to its color. The texture is used as a one dimensional lookup "
-                "function.",
+                ColorTextureInfo.description,
                 Optional::No
+            },
+            {
+                ColorOptionInfo.identifier,
+                new StringInListVerifier({
+                    "Color", "Velocity", "Speed"
+                }),
+                ColorOptionInfo.description,
+                Optional::Yes
+            },
+            {
+                TransparencyInfo.identifier,
+                new DoubleVerifier,
+                TransparencyInfo.description,
+                Optional::Yes
+            },
+            {
+                ScaleFactorInfo.identifier,
+                new DoubleVerifier,
+                ScaleFactorInfo.description,
+                Optional::Yes
+            },
+            {
+                MinBillboardSizeInfo.identifier,
+                new DoubleVerifier,
+                MinBillboardSizeInfo.description,
+                Optional::Yes
             }
         }
     };
@@ -124,21 +187,17 @@ openspace::Documentation RenderableStars::Documentation() {
 
 RenderableStars::RenderableStars(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
-    , _pointSpreadFunctionTexturePath("psfTexture", "Point Spread Function Texture")
+    , _pointSpreadFunctionTexturePath(PsfTextureInfo)
     , _pointSpreadFunctionTexture(nullptr)
     , _pointSpreadFunctionTextureIsDirty(true)
-    , _colorTexturePath("colorTexture", "ColorBV Texture")
+    , _colorTexturePath(ColorTextureInfo)
     , _colorTexture(nullptr)
     , _colorTextureIsDirty(true)
-    , _colorOption(
-        "colorOption",
-        "Color Option",
-        properties::OptionProperty::DisplayType::Dropdown
-    )
+    , _colorOption(ColorOptionInfo, properties::OptionProperty::DisplayType::Dropdown)
     , _dataIsDirty(true)
-    , _alphaValue("alphaValue", "Transparency", 1.f, 0.f, 1.f)
-    , _scaleFactor("scaleFactor", "Scale Factor", 1.f, 0.f, 10.f)
-    , _minBillboardSize("minBillboardSize", "Min Billboard Size", 1.f, 1.f, 100.f)
+    , _alphaValue(TransparencyInfo, 1.f, 0.f, 1.f)
+    , _scaleFactor(ScaleFactorInfo, 1.f, 0.f, 10.f)
+    , _minBillboardSize(MinBillboardSizeInfo, 1.f, 1.f, 100.f)
     , _program(nullptr)
     , _speckFile("")
     , _nValuesPerStar(0)
@@ -153,42 +212,74 @@ RenderableStars::RenderableStars(const ghoul::Dictionary& dictionary)
         "RenderableStars"
     );
 
-    _pointSpreadFunctionTexturePath = absPath(dictionary.value<std::string>(KeyTexture));
+    _pointSpreadFunctionTexturePath = absPath(dictionary.value<std::string>(
+        PsfTextureInfo.identifier
+    ));
     _pointSpreadFunctionFile = std::make_unique<File>(_pointSpreadFunctionTexturePath);
 
-    _colorTexturePath = absPath(dictionary.value<std::string>(KeyColorMap));
+    _colorTexturePath = absPath(dictionary.value<std::string>(
+        ColorTextureInfo.identifier
+    ));
     _colorTextureFile = std::make_unique<File>(_colorTexturePath);
 
     _speckFile = absPath(dictionary.value<std::string>(KeyFile));
 
-    //_colorOption.addOptions({
-    //    { ColorOption::Color, "Color" },
-    //    { ColorOption::Velocity, "Velocity" },
-    //    { ColorOption::Speed, "Speed" }
-    //});
-    _colorOption.addOption(ColorOption::Color, "Color");
-    _colorOption.addOption(ColorOption::Velocity, "Velocity");
-    _colorOption.addOption(ColorOption::Speed, "Speed");
+    _colorOption.addOptions({
+        { ColorOption::Color, "Color" },
+        { ColorOption::Velocity, "Velocity" },
+        { ColorOption::Speed, "Speed" }
+    });
+    if (dictionary.hasKey(ColorOptionInfo.identifier)) {
+        const std::string colorOption = dictionary.value<std::string>(
+            ColorOptionInfo.identifier
+        );
+        if (colorOption == "Color") {
+            _colorOption = ColorOption::Color;
+        }
+        else if (colorOption == "Velocity") {
+            _colorOption = ColorOption::Velocity;
+        }
+        else {
+            _colorOption = ColorOption::Speed;
+        }
+    }
+    _colorOption.onChange([&] { _dataIsDirty = true; });
     addProperty(_colorOption);
     
-    _colorOption.onChange([&]{ _dataIsDirty = true;});
 
-    addProperty(_pointSpreadFunctionTexturePath);
     _pointSpreadFunctionTexturePath.onChange(
         [&]{ _pointSpreadFunctionTextureIsDirty = true; }
     );
     _pointSpreadFunctionFile->setCallback(
         [&](const File&) { _pointSpreadFunctionTextureIsDirty = true; }
     );
+    addProperty(_pointSpreadFunctionTexturePath);
 
-    addProperty(_colorTexturePath);
     _colorTexturePath.onChange([&]{ _colorTextureIsDirty = true; });
     _colorTextureFile->setCallback(
         [&](const File&) { _colorTextureIsDirty = true; }
     );
+    addProperty(_colorTexturePath);
 
+    if (dictionary.hasKey(TransparencyInfo.identifier)) {
+        _alphaValue = static_cast<float>(
+            dictionary.value<double>(TransparencyInfo.identifier)
+        );
+    }
     addProperty(_alphaValue);
+
+    if (dictionary.hasKey(ScaleFactorInfo.identifier)) {
+        _scaleFactor = static_cast<float>(
+            dictionary.value<double>(ScaleFactorInfo.identifier)
+        );
+    }
     addProperty(_scaleFactor);
+
+    if (dictionary.hasKey(MinBillboardSizeInfo.identifier)) {
+        _minBillboardSize = static_cast<float>(
+            dictionary.value<double>(MinBillboardSizeInfo.identifier)
+        );
+    }
     addProperty(_minBillboardSize);
 }
 
@@ -233,7 +324,7 @@ bool RenderableStars::deinitialize() {
     return true;
 }
 
-void RenderableStars::render(const RenderData& data) {
+void RenderableStars::render(const RenderData& data, RendererTasks&) {
     glDepthMask(false);
     _program->activate();
 
@@ -284,7 +375,7 @@ void RenderableStars::render(const RenderData& data) {
     glDepthMask(true);
 }
 
-void RenderableStars::update(const UpdateData& data) {
+void RenderableStars::update(const UpdateData&) {
     if (_dataIsDirty) {
         const int value = _colorOption;
         LDEBUG("Regenerating data");
@@ -368,15 +459,14 @@ void RenderableStars::update(const UpdateData& data) {
         LDEBUG("Reloading Point Spread Function texture");
         _pointSpreadFunctionTexture = nullptr;
         if (_pointSpreadFunctionTexturePath.value() != "") {
-            _pointSpreadFunctionTexture = std::move(
-                ghoul::io::TextureReader::ref().loadTexture(
-                    absPath(_pointSpreadFunctionTexturePath)
-                )
+            _pointSpreadFunctionTexture = ghoul::io::TextureReader::ref().loadTexture(
+                absPath(_pointSpreadFunctionTexturePath)
             );
             
             if (_pointSpreadFunctionTexture) {
                 LDEBUG("Loaded texture from '" <<
-                       absPath(_pointSpreadFunctionTexturePath) << "'");
+                    absPath(_pointSpreadFunctionTexturePath) << "'"
+               );
                 _pointSpreadFunctionTexture->uploadTexture();
             }
             _pointSpreadFunctionTexture->setFilter(ghoul::opengl::Texture::FilterMode::AnisotropicMipMap);
@@ -397,7 +487,7 @@ void RenderableStars::update(const UpdateData& data) {
         LDEBUG("Reloading Color Texture");
         _colorTexture = nullptr;
         if (_colorTexturePath.value() != "") {
-            _colorTexture = std::move(ghoul::io::TextureReader::ref().loadTexture(absPath(_colorTexturePath)));
+            _colorTexture = ghoul::io::TextureReader::ref().loadTexture(absPath(_colorTexturePath));
             if (_colorTexture) {
                 LDEBUG("Loaded texture from '" << absPath(_colorTexturePath) << "'");
                 _colorTexture->uploadTexture();
@@ -466,7 +556,7 @@ bool RenderableStars::readSpeckFile() {
     // (signaled by the keywords 'datavar', 'texturevar', and 'texture')
     std::string line = "";
     while (true) {
-        std::ifstream::streampos position = file.tellg();
+        std::streampos position = file.tellg();
         std::getline(file, line);
 
         if (line[0] == '#' || line.empty()) {
@@ -522,7 +612,7 @@ bool RenderableStars::loadCachedFile(const std::string& file) {
         int8_t version = 0;
         fileStream.read(reinterpret_cast<char*>(&version), sizeof(int8_t));
         if (version != CurrentCacheVersion) {
-            LINFO("The format of the cached file has changed, deleting old cache");
+            LINFO("The format of the cached file has changed: deleting old cache");
             fileStream.close();
             FileSys.deleteFile(file);
             return false;

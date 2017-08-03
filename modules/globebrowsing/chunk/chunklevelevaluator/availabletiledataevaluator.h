@@ -27,9 +27,7 @@
 
 #include <modules/globebrowsing/chunk/chunklevelevaluator/chunklevelevaluator.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace chunklevelevaluator {
+namespace openspace::globebrowsing::chunklevelevaluator {
 
 /**
  * If this chunk has available tile data for any LayerGroup on any of its active
@@ -38,11 +36,10 @@ namespace chunklevelevaluator {
 */
 class AvailableTileData : public Evaluator {
 public:
+    virtual ~AvailableTileData() override = default;
     int getDesiredLevel(const Chunk& chunk, const RenderData& data) const override;
 };
 
-} // namespace chunklevelevaluator
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::chunklevelevaluator
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___AVAILABLETILEDATAEVALUATOR___H__

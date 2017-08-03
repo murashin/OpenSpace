@@ -38,18 +38,15 @@
 #include <modules/multiresvolume/rendering/atlasmanager.h>
 #include <modules/multiresvolume/rendering/tsp.h>
 
-
-namespace ghoul {
-    namespace opengl {
-        class Texture;
-        class ProgramObject;
-    }
+namespace ghoul::opengl {
+    class Texture;
+    class ProgramObject;
 }
 
 namespace openspace {
 
-class RenderData;
-class RaycastData;
+struct RenderData;
+struct RaycastData;
 
 class MultiresVolumeRaycaster : public VolumeRaycaster {
 public:

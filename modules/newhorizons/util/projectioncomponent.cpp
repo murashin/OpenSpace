@@ -29,12 +29,14 @@
 #include <modules/newhorizons/util/instrumenttimesparser.h>
 #include <modules/newhorizons/util/labelparser.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/scene/scenegraphnode.h>
 
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/io/texture/texturereader.h>
 #include <ghoul/misc/dictionary.h>
+#include <ghoul/opengl/programobject.h>
 #include <ghoul/opengl/framebufferobject.h>
 #include <ghoul/opengl/textureconversion.h>
 #include <ghoul/opengl/textureunit.h>
@@ -69,14 +71,52 @@ namespace {
         "${OPENSPACE_DATA}/scene/common/textures/placeholder.png";
 
     const char* _loggerCat = "ProjectionComponent";
-}
+
+    static const openspace::properties::Property::PropertyInfo ProjectionInfo = {
+        "PerformProjection",
+        "Perform Projections",
+        "If this value is enabled, this ProjectionComponent will perform projections. If "
+        "it is disabled, projections will be ignored."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ClearProjectionInfo = {
+        "ClearAllProjections",
+        "Clear Projections",
+        "If this property is triggered, it will remove all the projections that have "
+        "already been applied."
+    };
+
+    static const openspace::properties::Property::PropertyInfo FadingInfo = {
+        "ProjectionFading",
+        "Projection Fading",
+        "This value fades the previously performed projections in or out. If this value "
+        "is equal to '1', the projections are fully visible, if the value is equal to "
+        "'0', the performed projections are completely invisible."
+    };
+
+    static const openspace::properties::Property::PropertyInfo TextureSizeInfo = {
+        "TextureSize",
+        "Texture Size",
+        "This value determines the size of the texture into which the images are "
+        "projected and thus provides the limit to the resolution of projections that can "
+        "be applied. Changing this value will not cause the texture to be automatically "
+        "updated, but triggering the 'ApplyTextureSize' property is required."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ApplyTextureSizeInfo = {
+        "ApplyTextureSize",
+        "Apply Texture Size",
+        "Triggering this property applies a new size to the underlying projection "
+        "texture. The old texture is resized and interpolated to fit the new size."
+    };
+} // namespace
 
 namespace openspace {
 
 using ghoul::Dictionary;
 using glm::ivec2;
 
-Documentation ProjectionComponent::Documentation() {
+documentation::Documentation ProjectionComponent::Documentation() {
     using namespace documentation;
     return {
         "Projection Component",
@@ -165,17 +205,15 @@ Documentation ProjectionComponent::Documentation() {
 }
 
 ProjectionComponent::ProjectionComponent()
-    : properties::PropertyOwner()
-    , _performProjection("performProjection", "Perform Projections", true)
-    , _clearAllProjections("clearAllProjections", "Clear Projections", false)
-    , _projectionFading("projectionFading", "Projection Fading", 1.f, 0.f, 1.f)
-    , _textureSize("textureSize", "Texture Size", ivec2(16), ivec2(16), ivec2(32768))
-    , _applyTextureSize("applyTextureSize", "Apply Texture Size")
+    : properties::PropertyOwner("ProjectionComponent")
+    , _performProjection(ProjectionInfo, true)
+    , _clearAllProjections(ClearProjectionInfo, false)
+    , _projectionFading(FadingInfo, 1.f, 0.f, 1.f)
+    , _textureSize(TextureSizeInfo, ivec2(16), ivec2(16), ivec2(32768))
+    , _applyTextureSize(ApplyTextureSizeInfo)
     , _textureSizeDirty(false)
     , _projectionTexture(nullptr)
 {
-    setName("ProjectionComponent");
-
     _shadowing.isEnabled = false;
     _dilation.isEnabled = false;
 
@@ -197,8 +235,8 @@ void ProjectionComponent::initialize(const ghoul::Dictionary& dictionary) {
     _instrumentID = dictionary.value<std::string>(keyInstrument);
     _projectorID = dictionary.value<std::string>(keyProjObserver);
     _projecteeID = dictionary.value<std::string>(keyProjTarget);
-    _fovy = dictionary.value<double>(keyInstrumentFovy);
-    _aspectRatio = dictionary.value<double>(keyInstrumentAspect);
+    _fovy = static_cast<float>(dictionary.value<double>(keyInstrumentFovy));
+    _aspectRatio = static_cast<float>(dictionary.value<double>(keyInstrumentAspect));
 
     _aberration = SpiceManager::AberrationCorrection(
         dictionary.value<std::string>(keyProjAberration)
@@ -242,7 +280,7 @@ void ProjectionComponent::initialize(const ghoul::Dictionary& dictionary) {
     if (foundSequence) {
         sequenceSource = absPath(sequenceSource);
 
-        foundSequence = dictionary.getValue(keySequenceType, sequenceType);
+        dictionary.getValue(keySequenceType, sequenceType);
         //Important: client must define translation-list in mod file IFF playbook
         if (dictionary.hasKey(keyTranslation)) {
             ghoul::Dictionary translationDictionary;
@@ -271,7 +309,7 @@ void ProjectionComponent::initialize(const ghoul::Dictionary& dictionary) {
                     translationDictionary));
 
                 std::string _eventFile;
-                bool foundEventFile = dictionary.getValue("Projection.EventFile", _eventFile);
+                bool foundEventFile = dictionary.getValue("EventFile", _eventFile);
                 if (foundEventFile) {
                     //then read playbook
                     _eventFile = absPath(_eventFile);
@@ -913,7 +951,8 @@ bool ProjectionComponent::generateProjectionLayerTexture(const ivec2& size) {
         _dilation.stencilTexture = std::make_unique<ghoul::opengl::Texture>(
             glm::uvec3(size, 1),
             ghoul::opengl::Texture::Format::Red,
-            ghoul::opengl::Texture::Format::Red
+            // @TODO: Remove the static cast ---abock
+            static_cast<GLenum>(ghoul::opengl::Texture::Format::Red)
         );
 
         if (_dilation.stencilTexture) {

@@ -1,6 +1,8 @@
+local nix_radius = 0.45E5
+
 if UseAccurateNewHorizonsKernels then
     NewHorizonsKernels = {
-        "${SPICE}/nh_kernels/spk/NavSE_plu047_od122.bsp"
+        "${SPICE}/nh_20170126/spk/NavSE_plu047_od122.bsp"
     }
 else
     NewHorizonsKernels = {
@@ -17,9 +19,10 @@ return {
             Type = "RenderablePlanet",
             Frame = "IAU_PLUTO",
             Body = "NIX",
+            Radius = nix_radius,
             Geometry = {
                 Type = "SimpleSphere",
-                Radius = { 0.45 , 5 },
+                Radius = nix_radius,
                 Segments = 100
             },
             Textures = {
@@ -46,7 +49,7 @@ return {
         Parent = "Nix",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 6.3},
+            Size = 10^6.3,
             Origin = "Center",
             Billboard = true,
             Texture = "textures/Nix-Text.png"

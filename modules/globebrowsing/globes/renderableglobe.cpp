@@ -26,46 +26,160 @@
  
 #include <modules/debugging/rendering/debugrenderer.h>
 #include <modules/globebrowsing/globes/chunkedlodglobe.h>
+#include <modules/globebrowsing/globes/pointglobe.h>
 #include <modules/globebrowsing/rendering/layer/layermanager.h>
 
 namespace {
     const char* keyFrame = "Frame";
     const char* keyRadii = "Radii";
-    const char* keyInteractionDepthBelowEllipsoid = "InteractionDepthBelowEllipsoid";
-    const char* keyCameraMinHeight = "CameraMinHeight";
     const char* keySegmentsPerPatch = "SegmentsPerPatch";
     const char* keyLayers = "Layers";
-}
 
-namespace openspace {
+    static const openspace::properties::Property::PropertyInfo SaveOrThrowInfo = {
+        "SaveOrThrowCamera",
+        "Save or throw camera",
+        "" // @TODO Missing documentation
+    };
 
-using namespace properties;
+    static const openspace::properties::Property::PropertyInfo ShowChunkEdgeInfo = {
+        "ShowChunkEdges",
+        "Show chunk edges",
+        "" // @TODO Missing documentation
+    };
 
-namespace globebrowsing {
-    
+    static const openspace::properties::Property::PropertyInfo ShowChunkBoundsInfo = {
+        "ShowChunkBounds",
+        "Show chunk bounds",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo ShowChunkAABBInfo = {
+        "ShowChunkAABB",
+        "Show chunk AABB",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo HeightResolutionInfo = {
+        "ShowHeightResolution",
+        "Show height resolution",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo HeightIntensityInfo = {
+        "ShowHeightIntensities",
+        "Show height intensities",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo FrustumCullingInfo = {
+        "PerformFrustumCulling",
+        "Perform frustum culling",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo HorizonCullingInfo = {
+        "PerformHorizonCulling",
+        "Perform horizon culling",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo LevelProjectedAreaInfo = {
+        "LevelByProjectedAreaElseDistance",
+        "Level by projected area (else distance)",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo ResetTileProviderInfo = {
+        "ResetTileProviders",
+        "Reset tile providers",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo CollectStatsInfo = {
+        "CollectStats",
+        "Collect stats",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo LimitLevelInfo = {
+        "LimitLevelByAvailableData",
+        "Limit level by available data",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo ModelSpaceRenderingInfo = {
+        "ModelSpaceRenderingCutoffLevel",
+        "Model Space Rendering Cutoff Level",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo PerformShadingInfo = {
+        "PerformShading",
+        "Perform shading",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo AtmosphereInfo = {
+        "Atmosphere",
+        "Atmosphere",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo AccurateNormalsInfo = {
+        "UseAccurateNormals",
+        "Use Accurate Normals",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo LodScaleFactorInfo = {
+        "LodScaleFactor",
+        "Level of Detail Scale Factor",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo CameraMinHeightInfo = {
+        "CameraMinHeight",
+        "Camera Minimum Height",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo OrenNayarRoughnessInfo = {
+        "OrenNayarRoughness",
+        "orenNayarRoughness",
+        "" // @TODO Missing documentation
+    };
+} // namespace
+
+using namespace openspace::properties;
+
+namespace openspace::globebrowsing {
+
 RenderableGlobe::RenderableGlobe(const ghoul::Dictionary& dictionary)
-    : _generalProperties({
-        BoolProperty("enabled", "Enabled", true),
-        BoolProperty("performShading", "perform shading", true),
-        BoolProperty("atmosphere", "atmosphere", false),
-        FloatProperty("lodScaleFactor", "lodScaleFactor",10.0f, 1.0f, 50.0f),
-        FloatProperty("cameraMinHeight", "cameraMinHeight", 100.0f, 0.0f, 1000.0f)
-    })
+    : Renderable(dictionary)
     , _debugProperties({
-        BoolProperty("saveOrThrowCamera", "save or throw camera", false),
-        BoolProperty("showChunkEdges", "show chunk edges", false),
-        BoolProperty("showChunkBounds", "show chunk bounds", false),
-        BoolProperty("showChunkAABB", "show chunk AABB", false),
-        BoolProperty("showHeightResolution", "show height resolution", false),
-        BoolProperty("showHeightIntensities", "show height intensities", false),
-        BoolProperty("performFrustumCulling", "perform frustum culling", true),
-        BoolProperty("performHorizonCulling", "perform horizon culling", true),
-        BoolProperty("levelByProjectedAreaElseDistance", "level by projected area (else distance)",false),
-        BoolProperty("resetTileProviders", "reset tile providers", false),
-        BoolProperty("toggleEnabledEveryFrame", "toggle enabled every frame", false),
-        BoolProperty("collectStats", "collect stats", false),
-        BoolProperty("onlyModelSpaceRendering", "Only Model Space Rendering", false)
+        BoolProperty(SaveOrThrowInfo, false), 
+        BoolProperty(ShowChunkEdgeInfo, false),
+        BoolProperty(ShowChunkBoundsInfo, false),
+        BoolProperty(ShowChunkAABBInfo, false),
+        BoolProperty(HeightResolutionInfo, false), 
+        BoolProperty(HeightIntensityInfo, false),
+        BoolProperty(FrustumCullingInfo, true),
+        BoolProperty(HorizonCullingInfo, true),
+        BoolProperty(LevelProjectedAreaInfo, true),
+        BoolProperty(ResetTileProviderInfo, false),
+        BoolProperty(CollectStatsInfo, false),
+        BoolProperty(LimitLevelInfo, true),
+        IntProperty(ModelSpaceRenderingInfo, 10, 1, 22)
     })
+    , _generalProperties({
+        BoolProperty(PerformShadingInfo, true),
+        BoolProperty(AtmosphereInfo, false),
+        BoolProperty(AccurateNormalsInfo, false),
+        FloatProperty(LodScaleFactorInfo, 10.f, 1.f, 50.f),
+        FloatProperty(CameraMinHeightInfo, 100.f, 0.f, 1000.f),
+        FloatProperty(OrenNayarRoughnessInfo, 0.f, 0.f, 1.f)
+    })
+    , _debugPropertyOwner("Debug")
 {
     setName("RenderableGlobe");
         
@@ -75,44 +189,38 @@ RenderableGlobe::RenderableGlobe(const ghoul::Dictionary& dictionary)
     glm::dvec3 radii;
     dictionary.getValue(keyRadii, radii);
     _ellipsoid = Ellipsoid(radii);
-    setBoundingSphere(pss(_ellipsoid.averageRadius(), 0.0));
+    setBoundingSphere(static_cast<float>(_ellipsoid.maximumRadius()));
 
     // Ghoul can't read ints from lua dictionaries...
     double patchSegmentsd;
     dictionary.getValue(keySegmentsPerPatch, patchSegmentsd);
-    int patchSegments = patchSegmentsd;
-        
-    dictionary.getValue(keyInteractionDepthBelowEllipsoid,
-        _interactionDepthBelowEllipsoid);
-    float cameraMinHeight;
-    dictionary.getValue(keyCameraMinHeight, cameraMinHeight);
-    _generalProperties.cameraMinHeight.set(cameraMinHeight);
+    int patchSegments = static_cast<int>(patchSegmentsd);
 
     // Init layer manager
     ghoul::Dictionary layersDictionary;
-    if (!dictionary.getValue(keyLayers, layersDictionary))
-        throw ghoul::RuntimeError(std::string(keyLayers) + " must be specified specified!");
+    if (!dictionary.getValue(keyLayers, layersDictionary)) {
+        throw ghoul::RuntimeError(
+            std::string(keyLayers) + " must be specified specified!");
+    }
 
     _layerManager = std::make_shared<LayerManager>(layersDictionary);
 
     _chunkedLodGlobe = std::make_shared<ChunkedLodGlobe>(
-        *this, patchSegments, _layerManager);
+        *this,
+        patchSegments,
+        _layerManager
+        );
+    //_pointGlobe = std::make_shared<PointGlobe>(*this);
         
-    // This distance will be enough to render the globe as one pixel if the field of
-    // view is 'fov' radians and the screen resolution is 'res' pixels.
-    double fov = 2 * glm::pi<double>() / 6; // 60 degrees
-    int res = 2880;
-    double distance = res * _ellipsoid.maximumRadius() / tan(fov / 2);
-    _distanceSwitch.addSwitchValue(_chunkedLodGlobe, distance);
+    _distanceSwitch.addSwitchValue(_chunkedLodGlobe);
+    //_distanceSwitch.addSwitchValue(_pointGlobe);
         
-    _debugPropertyOwner.setName("Debug");
-    _texturePropertyOwner.setName("Textures");
-
-    addProperty(_generalProperties.isEnabled);
     addProperty(_generalProperties.atmosphereEnabled);
     addProperty(_generalProperties.performShading);
+    addProperty(_generalProperties.useAccurateNormals);
     addProperty(_generalProperties.lodScaleFactor);
     addProperty(_generalProperties.cameraMinHeight);
+    addProperty(_generalProperties.orenNayarRoughness);
         
     _debugPropertyOwner.addProperty(_debugProperties.saveOrThrowCamera);
     _debugPropertyOwner.addProperty(_debugProperties.showChunkEdges);
@@ -126,12 +234,25 @@ RenderableGlobe::RenderableGlobe(const ghoul::Dictionary& dictionary)
         _debugProperties.levelByProjectedAreaElseDistance
     );
     _debugPropertyOwner.addProperty(_debugProperties.resetTileProviders);
-    _debugPropertyOwner.addProperty(_debugProperties.toggleEnabledEveryFrame);
     _debugPropertyOwner.addProperty(_debugProperties.collectStats);
-    _debugPropertyOwner.addProperty(_debugProperties.onlyModelSpaceRendering);
-        
+    _debugPropertyOwner.addProperty(_debugProperties.limitLevelByAvailableData);
+    _debugPropertyOwner.addProperty(_debugProperties.modelSpaceRenderingCutoffLevel);
+  
+    auto notifyShaderRecompilation = [&](){
+        _chunkedLodGlobe->notifyShaderRecompilation();
+    };
+    _generalProperties.atmosphereEnabled.onChange(notifyShaderRecompilation);
+    _generalProperties.useAccurateNormals.onChange(notifyShaderRecompilation);
+    _generalProperties.performShading.onChange(notifyShaderRecompilation);
+    _debugProperties.showChunkEdges.onChange(notifyShaderRecompilation);
+    _debugProperties.showHeightResolution.onChange(notifyShaderRecompilation);
+    _debugProperties.showHeightIntensities.onChange(notifyShaderRecompilation);
+
+    _layerManager->onChange(notifyShaderRecompilation);
+
     addPropertySubOwner(_debugPropertyOwner);
     addPropertySubOwner(_layerManager.get());
+    //addPropertySubOwner(_pointGlobe.get());
 }
 
 bool RenderableGlobe::initialize() {
@@ -146,16 +267,11 @@ bool RenderableGlobe::isReady() const {
     return true;
 }
 
-void RenderableGlobe::render(const RenderData& data) {
+void RenderableGlobe::render(const RenderData& data, RendererTasks& tasks) {
     bool statsEnabled = _debugProperties.collectStats.value();
     _chunkedLodGlobe->stats.setEnabled(statsEnabled);
 
-    if (_debugProperties.toggleEnabledEveryFrame.value()) {
-        _generalProperties.isEnabled.setValue(
-            !_generalProperties.isEnabled.value()
-        );
-    }
-    if (_generalProperties.isEnabled.value()) {
+    if (_enabled) {
         if (_debugProperties.saveOrThrowCamera.value()) {
             _debugProperties.saveOrThrowCamera.setValue(false);
 
@@ -166,7 +282,7 @@ void RenderableGlobe::render(const RenderData& data) {
                 setSaveCamera(nullptr);
             }
         }
-        _distanceSwitch.render(data);
+        _distanceSwitch.render(data, tasks);
     }
     if (_savedCamera != nullptr) {
         DebugRenderer::ref().renderCameraFrustum(data, *_savedCamera);
@@ -174,7 +290,7 @@ void RenderableGlobe::render(const RenderData& data) {
 }
 
 void RenderableGlobe::update(const UpdateData& data) {
-    _time = data.time;
+    _time = data.time.j2000Seconds();
     _distanceSwitch.update(data);
 
     glm::dmat4 translation =
@@ -212,6 +328,10 @@ std::shared_ptr<ChunkedLodGlobe> RenderableGlobe::chunkedLodGlobe() const{
     return _chunkedLodGlobe;
 }
 
+LayerManager* RenderableGlobe::layerManager() const {
+    return _layerManager.get();
+}
+
 const Ellipsoid& RenderableGlobe::ellipsoid() const{
     return _ellipsoid;
 }
@@ -238,13 +358,37 @@ const std::shared_ptr<const Camera> RenderableGlobe::savedCamera() const {
     return _savedCamera;
 }
 
-double RenderableGlobe::interactionDepthBelowEllipsoid() {
-    return _interactionDepthBelowEllipsoid;
+SurfacePositionHandle RenderableGlobe::calculateSurfacePositionHandle(
+                                                       const glm::dvec3& targetModelSpace) 
+{
+    glm::dvec3 centerToEllipsoidSurface =
+        _ellipsoid.geodeticSurfaceProjection(targetModelSpace);
+    glm::dvec3 ellipsoidSurfaceToTarget = targetModelSpace - centerToEllipsoidSurface;
+    // ellipsoidSurfaceOutDirection will point towards the target, we want the outward
+    // direction. Therefore it must be flipped in case the target is under the reference
+    // ellipsoid so that it always points outwards
+    glm::dvec3 ellipsoidSurfaceOutDirection = glm::normalize(ellipsoidSurfaceToTarget);
+    if (glm::dot(ellipsoidSurfaceOutDirection, centerToEllipsoidSurface) < 0) {
+        ellipsoidSurfaceOutDirection *= -1.0;
+    }
+
+    double heightToSurface = getHeight(targetModelSpace);
+    heightToSurface = glm::isnan(heightToSurface) ? 0.0 : heightToSurface;
+    centerToEllipsoidSurface = glm::isnan(glm::length(centerToEllipsoidSurface)) ?
+        (glm::dvec3(0.0, 1.0, 0.0) * static_cast<double>(boundingSphere())) :
+        centerToEllipsoidSurface;
+    ellipsoidSurfaceOutDirection = glm::isnan(glm::length(ellipsoidSurfaceOutDirection)) ?
+        glm::dvec3(0.0, 1.0, 0.0) : ellipsoidSurfaceOutDirection;
+
+    return {
+        centerToEllipsoidSurface,
+        ellipsoidSurfaceOutDirection,
+        heightToSurface
+    };
 }
 
 void RenderableGlobe::setSaveCamera(std::shared_ptr<Camera> camera) { 
     _savedCamera = camera;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

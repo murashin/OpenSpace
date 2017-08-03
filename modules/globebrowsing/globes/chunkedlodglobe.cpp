@@ -49,8 +49,7 @@
 
 #include <math.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 const TileIndex ChunkedLodGlobe::LEFT_HEMISPHERE_INDEX = TileIndex(0, 0, 1);
 const TileIndex ChunkedLodGlobe::RIGHT_HEMISPHERE_INDEX = TileIndex(1, 0, 1);
@@ -58,13 +57,15 @@ const GeodeticPatch ChunkedLodGlobe::COVERAGE = GeodeticPatch(0, 0, 90, 180);
 
 ChunkedLodGlobe::ChunkedLodGlobe(const RenderableGlobe& owner, size_t segmentsPerPatch,
                                  std::shared_ptr<LayerManager> layerManager)
-    : _owner(owner)
-    , _leftRoot(std::make_unique<ChunkNode>(Chunk(owner, LEFT_HEMISPHERE_INDEX)))
-    , _rightRoot(std::make_unique<ChunkNode>(Chunk(owner, RIGHT_HEMISPHERE_INDEX)))
+    : Renderable({ { "Name", owner.name() } })
     , minSplitDepth(2)
     , maxSplitDepth(22)
-    , _layerManager(layerManager)
     , stats(StatsCollector(absPath("test_stats"), 1, StatsCollector::Enabled::No))
+    , _owner(owner)
+    , _leftRoot(std::make_unique<ChunkNode>(Chunk(owner, LEFT_HEMISPHERE_INDEX)))
+    , _rightRoot(std::make_unique<ChunkNode>(Chunk(owner, RIGHT_HEMISPHERE_INDEX)))
+    , _layerManager(layerManager)
+    , _shadersNeedRecompilation(true)
 {
     auto geometry = std::make_shared<SkirtedGrid>(
         static_cast<unsigned int>(segmentsPerPatch),
@@ -143,7 +144,8 @@ int ChunkedLodGlobe::getDesiredLevel(
     int desiredLevelByAvailableData = _chunkEvaluatorByAvailableTiles->getDesiredLevel(
         chunk, renderData
     );
-    if (desiredLevelByAvailableData != chunklevelevaluator::Evaluator::UnknownDesiredLevel) {
+    if (desiredLevelByAvailableData != chunklevelevaluator::Evaluator::UnknownDesiredLevel &&
+        _owner.debugProperties().limitLevelByAvailableData) {
         desiredLevel = glm::min(desiredLevel, desiredLevelByAvailableData);
     }
 
@@ -171,23 +173,32 @@ float ChunkedLodGlobe::getHeight(glm::dvec3 position) const {
     );
 
     // Get the tile providers for the height maps
-    const auto& heightMapLayers = _layerManager->layerGroup(LayerManager::HeightLayers).activeLayers();
+    const std::vector<std::shared_ptr<Layer>>& heightMapLayers =
+        _layerManager->layerGroup(layergroupid::GroupID::HeightLayers).activeLayers();
         
-    for (const auto& layer : heightMapLayers) {
+    for (const std::shared_ptr<Layer>& layer : heightMapLayers) {
         tileprovider::TileProvider* tileProvider = layer->tileProvider();
+        if (!tileProvider) {
+            continue;
+        }
         // Transform the uv coordinates to the current tile texture
         ChunkTile chunkTile = tileProvider->getChunkTile(tileIndex);
-        const auto& tile = chunkTile.tile;
-        const auto& uvTransform = chunkTile.uvTransform;
-        const auto& depthTransform = tileProvider->depthTransform();
-        if (tile.status != Tile::Status::OK) {
+        const Tile& tile = chunkTile.tile;
+        const TileUvTransform& uvTransform = chunkTile.uvTransform;
+        const TileDepthTransform& depthTransform = tileProvider->depthTransform();
+        if (tile.status() != Tile::Status::OK) {
+            return 0;
+        }
+
+        ghoul::opengl::Texture* tileTexture = tile.texture();
+        if (!tileTexture) {
             return 0;
         }
 
         glm::vec2 transformedUv = Tile::TileUvToTextureSamplePosition(
             uvTransform,
             patchUV,
-            glm::uvec2(tile.texture->dimensions())
+            glm::uvec2(tileTexture->dimensions())
         );
 
         // Sample and do linear interpolation
@@ -195,7 +206,7 @@ float ChunkedLodGlobe::getHeight(glm::dvec3 position) const {
         // Suggestion: a function in ghoul::opengl::Texture that takes uv coordinates
         // in range [0,1] and uses the set interpolation method and clamping.
 
-        glm::uvec3 dimensions = tile.texture->dimensions();
+        glm::uvec3 dimensions = tileTexture->dimensions();
             
         glm::vec2 samplePos = transformedUv * glm::vec2(dimensions);
         glm::uvec2 samplePos00 = samplePos;
@@ -219,10 +230,10 @@ float ChunkedLodGlobe::getHeight(glm::dvec3 position) const {
             glm::uvec2(dimensions) - glm::uvec2(1)
         );
 
-        float sample00 = tile.texture->texelAsFloat(samplePos00).x;
-        float sample10 = tile.texture->texelAsFloat(samplePos10).x;
-        float sample01 = tile.texture->texelAsFloat(samplePos01).x;
-        float sample11 = tile.texture->texelAsFloat(samplePos11).x;
+        float sample00 = tileTexture->texelAsFloat(samplePos00).x;
+        float sample10 = tileTexture->texelAsFloat(samplePos10).x;
+        float sample01 = tileTexture->texelAsFloat(samplePos01).x;
+        float sample11 = tileTexture->texelAsFloat(samplePos11).x;
 
         // In case the texture has NaN or no data values don't use this height map.
         bool anySampleIsNaN =
@@ -241,20 +252,39 @@ float ChunkedLodGlobe::getHeight(glm::dvec3 position) const {
             continue;
         }
 
-        float sample0 = sample00 * (1.0 - samplePosFract.x) + sample10 * samplePosFract.x;
-        float sample1 = sample01 * (1.0 - samplePosFract.x) + sample11 * samplePosFract.x;
+        float sample0 = sample00 * (1.f - samplePosFract.x) + sample10 * samplePosFract.x;
+        float sample1 = sample01 * (1.f - samplePosFract.x) + sample11 * samplePosFract.x;
 
-        float sample = sample0 * (1.0 - samplePosFract.y) + sample1 * samplePosFract.y;
+        float sample = sample0 * (1.f - samplePosFract.y) + sample1 * samplePosFract.y;
 
-        // Perform depth transform to get the value in meters
-        height = depthTransform.depthOffset + depthTransform.depthScale * sample;
+        // Same as is used in the shader. This is not a perfect solution but
+        // if the sample is actually a no-data-value (min_float) the interpolated
+        // value might not be. Therefore we have a cut-off. Assuming no data value
+        // is smaller than -100000
+        if (sample > -100000)
+        {
+            // Perform depth transform to get the value in meters
+            height = depthTransform.depthOffset + depthTransform.depthScale * sample;
+            // Make sure that the height value follows the layer settings.
+            // For example if the multiplier is set to a value bigger than one,
+            // the sampled height should be modified as well.
+            height = layer->renderSettings().performLayerSettings(height);
+        }
     }
     // Return the result
     return height;
 }
 
-void ChunkedLodGlobe::render(const RenderData& data) {
+void ChunkedLodGlobe::notifyShaderRecompilation() {
+    _shadersNeedRecompilation = true;
+}
+
+void ChunkedLodGlobe::render(const RenderData& data, RendererTasks&) {
     stats.startNewRecord();
+    if (_shadersNeedRecompilation) {
+        _renderer->recompileShaders(_owner);
+        _shadersNeedRecompilation = false;
+    }
         
     auto duration = std::chrono::system_clock::now().time_since_epoch();
     auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
@@ -265,7 +295,7 @@ void ChunkedLodGlobe::render(const RenderData& data) {
 
     // Calculate the MVP matrix
     glm::dmat4 viewTransform = glm::dmat4(data.camera.combinedViewMatrix());
-    glm::dmat4 vp = glm::dmat4(data.camera.projectionMatrix()) * viewTransform;
+    glm::dmat4 vp = glm::dmat4(data.camera.sgctInternal.projectionMatrix()) * viewTransform;
     glm::dmat4 mvp = vp * _owner.modelTransform();
 
     // Render function
@@ -276,7 +306,6 @@ void ChunkedLodGlobe::render(const RenderData& data) {
             stats.i["leafs chunk nodes"]++;
             if (chunk.isVisible()) {
                 stats.i["rendered chunks"]++;
-                double t0 = Time::now().j2000Seconds();
                 _renderer->renderChunk(chunkNode.getChunk(), data);
                 debugRenderChunk(chunk, mvp);
             }
@@ -328,8 +357,10 @@ void ChunkedLodGlobe::debugRenderChunk(const Chunk& chunk, const glm::dmat4& mvp
 }
 
 void ChunkedLodGlobe::update(const UpdateData& data) {
+    setBoundingSphere(static_cast<float>(
+        _owner.ellipsoid().maximumRadius() * data.modelTransform.scale
+    ));
     _renderer->update();
 }
     
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

@@ -22,34 +22,34 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-namespace openspace {
+namespace openspace::luascriptfunctions {
 
-namespace luascriptfunctions { 
-    int loadMission(lua_State* L) {
-        using ghoul::lua::luaTypeToString;
-        int nArguments = lua_gettop(L);
-        if (nArguments != 1)
-            return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
+int loadMission(lua_State* L) {
+    using ghoul::lua::luaTypeToString;
+    int nArguments = lua_gettop(L);
+    if (nArguments != 1)
+        return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
 
-        std::string missionFileName = luaL_checkstring(L, -1);
-        if (missionFileName.empty()) {
-            return luaL_error(L, "filepath string is empty");
-        }
-        MissionManager::ref().loadMission(absPath(missionFileName));
+    std::string missionFileName = luaL_checkstring(L, -1);
+    if (missionFileName.empty()) {
+        return luaL_error(L, "filepath string is empty");
     }
+    MissionManager::ref().loadMission(absPath(missionFileName));
+    return 0;
+}
 
-    int setCurrentMission(lua_State* L) {
-        using ghoul::lua::luaTypeToString;
-        int nArguments = lua_gettop(L);
-        if (nArguments != 1)
-            return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
+int setCurrentMission(lua_State* L) {
+    using ghoul::lua::luaTypeToString;
+    int nArguments = lua_gettop(L);
+    if (nArguments != 1)
+        return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
 
-        std::string missionName = luaL_checkstring(L, -1);
-        if (missionName.empty()) {
-            return luaL_error(L, "mission name string is empty");
-        }
-        MissionManager::ref().setCurrentMission(missionName);
+    std::string missionName = luaL_checkstring(L, -1);
+    if (missionName.empty()) {
+        return luaL_error(L, "mission name string is empty");
     }
+    MissionManager::ref().setCurrentMission(missionName);
+    return 0;
+}
 
-} // namespace luascriptfunction
-} // namespace openspace
+} // namespace openspace::luascriptfunction

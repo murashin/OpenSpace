@@ -25,16 +25,16 @@
 #ifndef __OPENSPACE_CORE___PARALLELCONNECTION___H__
 #define __OPENSPACE_CORE___PARALLELCONNECTION___H__
 
-//openspace includes
 #include <openspace/network/messagestructures.h>
+#include <openspace/properties/propertyowner.h>
+#include <openspace/properties/stringproperty.h>
+#include <openspace/properties/numericalproperty.h>
+#include <openspace/properties/scalar/floatproperty.h>
 
-//glm includes
 #include <glm/gtx/quaternion.hpp>
 
-//ghoul includes
 #include <ghoul/designpattern/event.h>
 
-//std includes
 #include <string>
 #include <vector>
 #include <deque>
@@ -43,8 +43,6 @@
 #include <mutex>
 #include <map>
 #include <condition_variable>
-
-
 
 #if defined(WIN32) || defined(__MING32__) || defined(__MING64__)
 typedef size_t _SOCKET;
@@ -57,7 +55,7 @@ struct addrinfo;
 
 namespace openspace {
 
-class ParallelConnection {
+class ParallelConnection : public properties::PropertyOwner {
     public:
     enum class Status : uint32_t {
         Disconnected = 0,
@@ -99,17 +97,21 @@ class ParallelConnection {
     ParallelConnection();
     ~ParallelConnection();
     void clientConnect();
-    void setPort(const std::string &port);
-    void setAddress(const std::string &address);
-    void setName(const std::string& name);
+    void setPort(std::string port);
+    void setAddress(std::string address);
+    void setName(std::string name);
     bool isHost();
     const std::string& hostName();
-    void requestHostship(const std::string &password);
+    void requestHostship();
     void resignHostship();
-    void setPassword(const std::string &password);
+    void setPassword(std::string password);
+    void setHostPassword(std::string hostPassword);
     void signalDisconnect();
     void preSynchronization();
-    void sendScript(const std::string& script);
+    void sendScript(std::string script);
+    void resetTimeOffset();
+    double latencyStandardDeviation() const;
+    double timeTolerance() const;
 
     /**
         * Returns the Lua library that contains all Lua functions available to affect the
@@ -120,7 +122,7 @@ class ParallelConnection {
         */
     static scripting::LuaLibrary luaLibrary();
     Status status();
-    size_t nConnections();
+    int nConnections();
     std::shared_ptr<ghoul::Event<>> connectionEvent();
 
             
@@ -145,7 +147,6 @@ private:
     void connectionStatusMessageReceived(const std::vector<char>& messageContent);
     void nConnectionsMessageReceived(const std::vector<char>& messageContent);
 
-    void broadcast();
     void sendCameraKeyframe();
     void sendTimeKeyframe();
 
@@ -158,10 +159,18 @@ private:
 
     double calculateBufferedKeyframeTime(double originalTime);
 
-    uint32_t _passCode;
-    std::string _port;
-    std::string _address;
-    std::string _name;
+    properties::StringProperty _password;
+    properties::StringProperty _hostPassword;
+    properties::StringProperty _port;
+    properties::StringProperty _address;
+    properties::StringProperty _name;
+    properties::FloatProperty _bufferTime;
+    properties::FloatProperty _timeKeyframeInterval;
+    properties::FloatProperty _cameraKeyframeInterval;
+    properties::FloatProperty _timeTolerance;
+
+    double _lastTimeKeyframeTimestamp;
+    double _lastCameraKeyframeTimestamp;
             
     _SOCKET _clientSocket;
 
@@ -191,7 +200,6 @@ private:
     double _initialTimeDiff;
 
     std::unique_ptr<std::thread> _connectionThread;
-    std::unique_ptr<std::thread> _broadcastThread;
     std::unique_ptr<std::thread> _sendThread;
     std::unique_ptr<std::thread> _listenThread;
     std::unique_ptr<std::thread> _handlerThread;

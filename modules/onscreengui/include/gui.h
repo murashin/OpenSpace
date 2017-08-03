@@ -26,20 +26,21 @@
 #define __OPENSPACE_MODULE_ONSCREENGUI___GUI___H__
 
 #include <modules/onscreengui/include/guicomponent.h>
+#include <modules/onscreengui/include/guifilepathcomponent.h>
 #include <modules/onscreengui/include/guihelpcomponent.h>
 #include <modules/onscreengui/include/guiperformancecomponent.h>
 #include <modules/onscreengui/include/guipropertycomponent.h>
 #include <modules/onscreengui/include/guiorigincomponent.h>
 #include <modules/onscreengui/include/guitimecomponent.h>
 #include <modules/onscreengui/include/guiiswacomponent.h>
+#include <modules/onscreengui/include/guiparallelcomponent.h>
 #include <openspace/scripting/scriptengine.h>
 #include <openspace/properties/property.h>
 
 #include <openspace/util/keys.h>
 #include <openspace/util/mouse.h>
 
-namespace openspace {
-namespace gui {
+namespace openspace::gui {
 
 class GUI : public GuiComponent {
 public:
@@ -64,13 +65,16 @@ public:
 
 //protected:
     GuiHelpComponent _help;
+    GuiFilePathComponent _filePath;
     GuiOriginComponent _origin;
     GuiPerformanceComponent _performance;
     GuiPropertyComponent _globalProperty;
     GuiPropertyComponent _property;
     GuiPropertyComponent _screenSpaceProperty;
+    GuiPropertyComponent _virtualProperty;
     GuiTimeComponent _time;
     GuiIswaComponent _iswa;
+    GuiParallelComponent _parallel;
 
 private:
     void renderAndUpdatePropertyVisibility();
@@ -79,7 +83,6 @@ private:
 
 };
 
-} // namespace gui
-} // namespace openspace
+} // namespace openspace::gui
 
 #endif // __OPENSPACE_MODULE_ONSCREENGUI___GUI___H__

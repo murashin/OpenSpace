@@ -28,8 +28,9 @@
 #include <modules/globebrowsing/other/concurrentqueue.h>
 #include <modules/globebrowsing/other/threadpool.h>
 
-namespace openspace {
-namespace globebrowsing {
+#include <mutex>
+
+namespace openspace::globebrowsing {
 
 // Templated abstract base class representing a job to be done.
 // Client code derive from this class and implement the virtual execute() method
@@ -39,17 +40,17 @@ struct Job {
     virtual ~Job();
 
     virtual void execute() = 0;
-    virtual std::shared_ptr<P> product() const = 0;
+    virtual std::shared_ptr<P> product() = 0;
 };
 
 /* 
-    * Templated Concurrent Job Manager
-    * This class is used execute specific jobs on one (1) parallell thread
-    */
+ * Templated Concurrent Job Manager
+ * This class is used execute specific jobs on one (1) parallell thread
+ */
 template<typename P>
 class ConcurrentJobManager {
 public:
-    ConcurrentJobManager(std::shared_ptr<ThreadPool> pool);
+    ConcurrentJobManager(ThreadPool pool);
 
     void enqueueJob(std::shared_ptr<Job<P>> job);
 
@@ -59,15 +60,13 @@ public:
 
     size_t numFinishedJobs() const;
 
-    void reset();
-
 private:
     ConcurrentQueue<std::shared_ptr<Job<P>>> _finishedJobs;
-    std::shared_ptr<ThreadPool> threadPool;
+    std::mutex _finishedJobsMutex;
+    ThreadPool threadPool;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #include "concurrentjobmanager.inl"
 

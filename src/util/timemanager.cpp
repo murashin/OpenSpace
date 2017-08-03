@@ -1,44 +1,41 @@
 /*****************************************************************************************
-*                                                                                       *
-* OpenSpace                                                                             *
-*                                                                                       *
-* Copyright (c) 2014-2016                                                               *
-*                                                                                       *
-* Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
-* software and associated documentation files (the "Software"), to deal in the Software *
-* without restriction, including without limitation the rights to use, copy, modify,    *
-* merge, publish, distribute, sublicense, and/or sell copies of the Software, and to    *
-* permit persons to whom the Software is furnished to do so, subject to the following   *
-* conditions:                                                                           *
-*                                                                                       *
-* The above copyright notice and this permission notice shall be included in all copies *
-* or substantial portions of the Software.                                              *
-*                                                                                       *
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,   *
-* INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A         *
-* PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT    *
-* HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF  *
-* CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE  *
-* OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
-****************************************************************************************/
+ *                                                                                       *
+ * OpenSpace                                                                             *
+ *                                                                                       *
+ * Copyright (c) 2014-2017                                                               *
+ *                                                                                       *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this  *
+ * software and associated documentation files (the "Software"), to deal in the Software *
+ * without restriction, including without limitation the rights to use, copy, modify,    *
+ * merge, publish, distribute, sublicense, and/or sell copies of the Software, and to    *
+ * permit persons to whom the Software is furnished to do so, subject to the following   *
+ * conditions:                                                                           *
+ *                                                                                       *
+ * The above copyright notice and this permission notice shall be included in all copies *
+ * or substantial portions of the Software.                                              *
+ *                                                                                       *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,   *
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A         *
+ * PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT    *
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF  *
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE  *
+ * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
+ ****************************************************************************************/
 
 #include <openspace/util/timemanager.h>
 #include <openspace/engine/openspaceengine.h>
-#include <openspace/util/time.h>
-
-namespace {
-    double SecondsOffTolerance = 0.1;
-}
+#include <openspace/network/parallelconnection.h>
+#include <openspace/util/timeline.h>
 
 namespace openspace {
 
 using datamessagestructures::TimeKeyframe;
 
 void TimeManager::preSynchronization(double dt) {
-    double now = OsEng.runTime();
+//    double now = OsEng.runTime();
     removeKeyframesBefore(_latestConsumedTimestamp);
-    if (_keyframes.size() == 0) {
-        Time::ref().advanceTime(dt);
+    if (_timeline.nKeyframes() == 0) {
+        time().advanceTime(dt);
     } else {
         consumeKeyframes(dt);
     }
@@ -46,108 +43,114 @@ void TimeManager::preSynchronization(double dt) {
 
 void TimeManager::consumeKeyframes(double dt) {
     double now = OsEng.runTime();
-    TimeKeyframe kf;
-    kf._timestamp = now;
-    auto firstFutureKeyframe = std::lower_bound(_keyframes.begin(), _keyframes.end(), kf, &TimeManager::compareKeyframeTimes);
+    
+    const std::deque<Keyframe<Time>>& keyframes = _timeline.keyframes();
+    auto firstFutureKeyframe = std::lower_bound(keyframes.begin(), keyframes.end(), now, &compareKeyframeTimeWithTime);
 
-    bool consumingTimeJump = std::find_if(_keyframes.begin(), firstFutureKeyframe, [] (const TimeKeyframe& f) {
-        return f._requiresTimeJump;
+    bool consumingTimeJump = std::find_if(keyframes.begin(), firstFutureKeyframe, [] (const Keyframe<Time>& f) {
+        return f.data.timeJumped();
     }) != firstFutureKeyframe;
 
-    Time& time = Time::ref();
-
-    if (firstFutureKeyframe == _keyframes.end()) {
+    if (firstFutureKeyframe == keyframes.end()) {
         // All keyframes are in the past.
         // Consume the latest one.
-        TimeKeyframe& current = _keyframes.back();
-        time.setTime(current._time, consumingTimeJump);
-        time.setDeltaTime(current._dt);
-        time.setPause(current._paused);
-        _latestConsumedTimestamp = current._timestamp;
+        const Keyframe<Time>& current = keyframes.back();
+        const Time& currentTime = current.data;
+        time().setTime(currentTime.j2000Seconds(), consumingTimeJump);
+        time().setDeltaTime(currentTime.deltaTime());
+        time().setPause(currentTime.paused());
+        _latestConsumedTimestamp = current.timestamp;
     }
     else {
-        TimeKeyframe& next = *firstFutureKeyframe;
+        const Keyframe<Time>& next = *firstFutureKeyframe;
+        const Time& nextTime = next.data;
 
-        if (firstFutureKeyframe != _keyframes.begin()) {
-            TimeKeyframe& latest = *(firstFutureKeyframe - 1);
+        if (firstFutureKeyframe != keyframes.begin()) {
+            const Keyframe<Time>& latest = *(firstFutureKeyframe - 1);
+            const Time& latestTime = latest.data;
             // In case of unconsumed passed keyframes, let the last one
             // determine whether the time should be paused or not.
             // If there was a time jump or time is paused, apply it directly.
             // Then consume the last keyframe.
 
-            time.setPause(latest._paused);
-            time.setTimeJumped(consumingTimeJump);
-            time.setDeltaTime(latest._dt);
+            time().setPause(latestTime.paused());
+            time().setTimeJumped(consumingTimeJump);
+            time().setDeltaTime(latestTime.deltaTime());
 
-            if (consumingTimeJump || latest._paused) {
-                time.setTime(latest._time, consumingTimeJump);
+            if (consumingTimeJump || latestTime.paused()) {
+                time().setTime(latestTime.j2000Seconds(), consumingTimeJump);
             }
-            _latestConsumedTimestamp = latest._timestamp;
+            _latestConsumedTimestamp = latest.timestamp;
         }
 
         // Do not interpolate with time jumping keyframes.
         // Instead, wait until their timestamp and apply them directly.
-        if (next._requiresTimeJump) {
-            Time::ref().advanceTime(dt);
+        if (nextTime.timeJumped()) {
+            time().advanceTime(dt);
             return;
         }
 
-        if (time.paused()) {
+        if (time().paused()) {
             return;
         }
 
-        double predictedTime = time.j2000Seconds() + time.deltaTime() * (next._timestamp - now);
-        bool withinTolerance = std::abs(predictedTime - next._time) < std::abs(next._dt * SecondsOffTolerance);
+        const double secondsOffTolerance = OsEng.parallelConnection().timeTolerance();
+
+        double predictedTime = time().j2000Seconds() + time().deltaTime() * (next.timestamp - now);
+        bool withinTolerance = std::abs(predictedTime - nextTime.j2000Seconds()) < std::abs(nextTime.deltaTime() * secondsOffTolerance);
         
-        if (next._dt == time.deltaTime() && withinTolerance) {
-            Time::ref().advanceTime(dt);
+        if (nextTime.deltaTime() == time().deltaTime() && withinTolerance) {
+            time().advanceTime(dt);
             return;
         }
 
         double t0 = now - dt;
         double t1 = now;
-        double t2 = next._timestamp;
+        double t2 = next.timestamp;
 
         double parameter = (t1 - t0) / (t2 - t0);
         
-        double y0 = time.j2000Seconds();
-        double yPrime0 = time.deltaTime();
+        double y0 = time().j2000Seconds();
+        double yPrime0 = time().deltaTime();
 
-        double y2 = next._time;
-        double yPrime2 = next._dt;
+        double y2 = nextTime.j2000Seconds();
+        double yPrime2 = nextTime.deltaTime();
 
         double y1 = (1 - parameter) * y0 + parameter * y2;
         double y1Prime = (y1 - y0) / dt;
 
-        time.setDeltaTime(y1Prime);
-        time.setTime(y1, false);
+        time().setDeltaTime(y1Prime);
+        time().setTime(y1, false);
     }
 }
 
+void TimeManager::addKeyframe(double timestamp, Time time) {
+    _timeline.addKeyframe(timestamp, time);
+}
 
-void TimeManager::addKeyframe(const TimeKeyframe& kf) {
-    if (kf._timestamp < OsEng.runTime()) {
-        return;
-    }
-    auto iter = std::upper_bound(_keyframes.begin(), _keyframes.end(), kf, &TimeManager::compareKeyframeTimes);
-    _keyframes.insert(iter, kf);
+void TimeManager::removeKeyframesAfter(double timestamp) {
+    _timeline.removeKeyframesAfter(timestamp);
 }
 
 
 void TimeManager::removeKeyframesBefore(double timestamp) {
-    datamessagestructures::TimeKeyframe kf;
-    kf._timestamp = timestamp;
-    auto iter = std::upper_bound(_keyframes.begin(), _keyframes.end(), kf, &TimeManager::compareKeyframeTimes);
-    _keyframes.erase(_keyframes.begin(), iter);
+    _timeline.removeKeyframesBefore(timestamp);
 }
 
 void TimeManager::clearKeyframes() {
-    _keyframes.clear();
+    _timeline.clearKeyframes();
 }
 
-bool TimeManager::compareKeyframeTimes(const TimeKeyframe& a, const TimeKeyframe& b)
-{
-    return a._timestamp < b._timestamp;
+size_t TimeManager::nKeyframes() const {
+    return _timeline.nKeyframes();
+}
+
+Time& TimeManager::time() {
+    return _currentTime;
+}
+
+std::vector<Syncable*> TimeManager::getSyncables() {
+    return{ &_currentTime };
 }
 
 }

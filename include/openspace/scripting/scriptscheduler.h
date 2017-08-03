@@ -25,18 +25,16 @@
 #ifndef __OPENSPACE_CORE___SCRIPTSCHEDULER___H__
 #define __OPENSPACE_CORE___SCRIPTSCHEDULER___H__
 
-#include <openspace/documentation/documentation.h>
 #include <openspace/scripting/lualibrary.h>
 
 #include <queue>
 #include <vector>
 
-namespace ghoul {
-class Dictionary;
-} // namespace ghoul
+namespace ghoul { class Dictionary; }
 
-namespace openspace {
-namespace scripting {
+namespace openspace::documentation { struct Documentation; }
+
+namespace openspace::scripting {
 
 /**
  * Maintains an ordered list of <code>ScheduledScript</code>s and provides a simple 
@@ -111,7 +109,7 @@ public:
 
     static LuaLibrary luaLibrary();
     
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 private:
     std::vector<double> _timings;
@@ -123,7 +121,6 @@ private:
 
 };
 
-} // namespace scripting
-} // namespace openspace
+} // namespace openspace::scripting
 
 #endif // __OPENSPACE_CORE___SCRIPTSCHEDULER___H__

@@ -32,18 +32,16 @@
 
 #include <ghoul/filesystem/filesystem>
 
-#include <ext/json/json.hpp>
+#include <modules/iswa/ext/json.h>
 
 #include "imgui.h"
 
 namespace {
     using json = nlohmann::json;
-    const std::string _loggerCat = "iSWAComponent";
-    const ImVec2 size = ImVec2(350, 500);
-}
+    const ImVec2 WindowSize = ImVec2(350, 500);
+} // namespace
 
-namespace openspace {
-namespace gui {
+namespace openspace::gui {
 
 GuiIswaComponent::GuiIswaComponent()
     : GuiPropertyComponent("iSWA")
@@ -60,7 +58,7 @@ void GuiIswaComponent::render() {
 
     bool e = _isEnabled;
 
-    ImGui::Begin("ISWA", &e, size, 0.5f);
+    ImGui::Begin("ISWA", &e, WindowSize, 0.5f);
 
     _isEnabled = e;
     
@@ -224,5 +222,4 @@ void GuiIswaComponent::render() {
 #endif
 }
 
-} // namespace gui
-} // namespace openspace
+} // namespace openspace::gui

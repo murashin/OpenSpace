@@ -26,10 +26,9 @@
 
 #include <modules/globebrowsing/chunk/chunk.h>
 #include <modules/globebrowsing/globes/renderableglobe.h>
+#include <openspace/util/updatestructures.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace culling {
+namespace openspace::globebrowsing::culling {
 
 FrustumCuller::FrustumCuller(AABB3 viewFrustum)
     : _viewFrustum(std::move(viewFrustum))
@@ -39,7 +38,7 @@ bool FrustumCuller::isCullable(const Chunk& chunk, const RenderData& data) {
     // Calculate the MVP matrix
     glm::dmat4 modelTransform = chunk.owner().modelTransform();
     glm::dmat4 viewTransform = glm::dmat4(data.camera.combinedViewMatrix());
-    glm::dmat4 modelViewProjectionTransform = glm::dmat4(data.camera.projectionMatrix())
+    glm::dmat4 modelViewProjectionTransform = glm::dmat4(data.camera.sgctInternal.projectionMatrix())
         * viewTransform * modelTransform;
 
     const std::vector<glm::dvec4>& corners = chunk.getBoundingPolyhedronCorners();
@@ -58,6 +57,4 @@ bool FrustumCuller::isCullable(const Chunk& chunk, const RenderData& data) {
     return !(_viewFrustum.intersects(bounds));
 }
 
-} // namespace culling
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::culling

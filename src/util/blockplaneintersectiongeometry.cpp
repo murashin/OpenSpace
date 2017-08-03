@@ -31,10 +31,8 @@
 #include <algorithm>
 
 namespace {
-const std::string _loggerCat = "BlockPlaneIntersectionGeometry";
-}
-
-
+    const char* _loggerCat = "BlockPlaneIntersectionGeometry";
+} // namespace
 
 namespace openspace {
 
@@ -46,7 +44,8 @@ BlockPlaneIntersectionGeometry::BlockPlaneIntersectionGeometry(
     : _initialized(false)
     , _vaoId(0)
     , _vBufferId(0)
-    , _size(blockSize) {}
+    , _size(blockSize)
+{}
 
 BlockPlaneIntersectionGeometry::~BlockPlaneIntersectionGeometry() {
     glDeleteBuffers(1, &_vBufferId);
@@ -171,7 +170,7 @@ bool BlockPlaneIntersectionGeometry::initialize() {
 void BlockPlaneIntersectionGeometry::render() {
     glBindVertexArray(_vaoId);
     //glDisable(GL_CULL_FACE);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, _vertices.size() / 3);
+    glDrawArrays(GL_TRIANGLE_FAN, 0, static_cast<GLsizei>(_vertices.size() / 3));
     //glEnable(GL_CULL_FACE);
 }
 

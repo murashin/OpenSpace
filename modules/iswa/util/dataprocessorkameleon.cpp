@@ -27,8 +27,8 @@
 #include <ghoul/filesystem/filesystem.h>
 
 namespace {
-    const std::string _loggerCat = "DataProcessorKameleon";
-}
+    const char* _loggerCat = "DataProcessorKameleon";
+} // namespace
 
 namespace openspace {
 
@@ -112,7 +112,7 @@ std::vector<float*> DataProcessorKameleon::processData(std::string path, propert
             initializeKameleonWrapper(path);
 
         std::vector<int> selectedOptions = dataOptions.value();
-        int numSelected = selectedOptions.size();
+//        int numSelected = selectedOptions.size();
 
         auto options = dataOptions.options();
         int numOptions = options.size();

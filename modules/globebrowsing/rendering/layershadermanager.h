@@ -26,18 +26,16 @@
 #define __OPENSPACE_MODULE_GLOBEBROWSING___LAYER_SHADER_MANAGER___H__
 
 #include <modules/globebrowsing/rendering/layer/layermanager.h>
+#include <modules/globebrowsing/rendering/layer/layer.h>
 
 #include <array>
 #include <string>
 
-namespace ghoul {
-namespace opengl {
-class ProgramObject;
-}
-}
+namespace ghoul::opengl { class ProgramObject; }
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
+
+class RenderableGlobe;
 
 /**
  * This class has ownership of an updated shader program for rendering tiles.
@@ -61,13 +59,18 @@ public:
         struct LayerGroupPreprocessingData {
             int lastLayerIdx;
             bool layerBlendingEnabled;
+            std::vector<layergroupid::TypeID> layerType;
+            std::vector<layergroupid::BlendModeID> blendMode;
+            std::vector<layergroupid::AdjustmentTypeID> layerAdjustmentType;
             bool operator==(const LayerGroupPreprocessingData& other) const;
         };
         
-        std::array<LayerGroupPreprocessingData, LayerManager::NUM_LAYER_GROUPS>
+        std::array<LayerGroupPreprocessingData, layergroupid::NUM_LAYER_GROUPS>
         layeredTextureInfo;
         std::vector<std::pair<std::string, std::string> > keyValuePairs;
         bool operator==(const LayerShaderPreprocessingData& other) const;
+
+        static LayerShaderPreprocessingData get(const RenderableGlobe&);
     };
     
     LayerShaderManager(
@@ -78,20 +81,15 @@ public:
 
     /**
      * Returns a pointer to a <code>ProgramObject</code> for rendering tiles.
-     * \param <code>preprocessingData</code> determines wherer or not the shader
-     * program needs to be re-compiled. If <code>preprocessingData</code> is different
-     * from the last time this function was called the shader program will be
-     * recompiled before returned.
      */
-    ghoul::opengl::ProgramObject* programObject(
-        LayerShaderPreprocessingData preprocessingData);
+    ghoul::opengl::ProgramObject* programObject() const;
 
     bool updatedOnLastCall();
-        
-private:
-        
+    
     void recompileShaderProgram(LayerShaderPreprocessingData preprocessingData);
 
+private:
+        
     std::unique_ptr<ghoul::opengl::ProgramObject> _programObject;
     LayerShaderPreprocessingData _preprocessingData;
 
@@ -102,7 +100,6 @@ private:
     bool _updatedOnLastCall;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___LAYER_SHADER_MANAGER___H__

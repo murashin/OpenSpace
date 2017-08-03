@@ -22,7 +22,22 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#ifdef WIN32
+#pragma warning (push)
+#pragma warning (disable : 4619) // #pragma warning: there is no warning number '4800'
+#endif // WIN32
+
 #include "gtest/gtest.h"
+
+#ifdef WIN32
+#pragma warning (pop)
+#endif // WIN32
+
+// When running the unit tests we don't want to be asked what to do in the case of an
+// assertion
+#ifndef GHL_THROW_ON_ASSERT
+#define GHL_THROW_ON_ASSERT
+#endif // GHL_THROW_ON_ASSERTGHL_THROW_ON_ASSERT
 
 #include <ghoul/cmdparser/cmdparser>
 #include <ghoul/filesystem/filesystem>
@@ -33,7 +48,8 @@
 // test files
 #include <test_common.inl>
 #include <test_spicemanager.inl>
-#include <test_scenegraphloader.inl>
+#include <test_sceneloader.inl>
+#include <test_timeline.inl>
 
 #ifdef OPENSPACE_MODULE_GLOBEBROWSING_ENABLED
 //#include <test_chunknode.inl>
@@ -83,7 +99,8 @@ namespace {
 
 int main(int argc, char** argv) {
     std::vector<std::string> args;
-    openspace::OpenSpaceEngine::create(argc, argv, std::make_unique<openspace::WindowWrapper>(), args);
+    bool close;
+    openspace::OpenSpaceEngine::create(argc, argv, std::make_unique<openspace::WindowWrapper>(), args, close);
 
     testing::InitGoogleTest(&argc, argv);
 

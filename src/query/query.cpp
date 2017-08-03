@@ -25,7 +25,8 @@
 #include <openspace/query/query.h>
 
 #include <openspace/engine/openspaceengine.h>
-#include <openspace/interaction/interactionhandler.h>
+#include <openspace/engine/virtualpropertymanager.h>
+#include <openspace/interaction/navigationhandler.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/scene/scene.h>
@@ -36,11 +37,11 @@
 #include <modules/iswa/util/iswamanager.h>
 #include <modules/iswa/rendering/iswacygnet.h>
 
-namespace openspace {
-
 namespace {
-    const std::string _loggerCat = "Query";
-}
+    const char* _loggerCat = "Query";
+} // namespace
+
+namespace openspace {
 
 Scene* sceneGraph() {
     return OsEng.renderEngine().scene();
@@ -79,8 +80,9 @@ properties::Property* property(const std::string& uri) {
             return property;
         }
 
-        std::shared_ptr<ScreenSpaceRenderable> ssr = OsEng.renderEngine().screenSpaceRenderable(nameUri);
-        if(ssr){
+        std::shared_ptr<ScreenSpaceRenderable> ssr =
+            OsEng.renderEngine().screenSpaceRenderable(nameUri);
+        if (ssr) {
             properties::Property* property = ssr->property(remainingUri);
             return property;
         }
@@ -99,7 +101,8 @@ properties::Property* property(const std::string& uri) {
 std::vector<properties::Property*> allProperties() {
     std::vector<properties::Property*> properties;
 
-    auto p = OsEng.globalPropertyOwner().propertiesRecursive();
+    std::vector<properties::Property*> p =
+        OsEng.globalPropertyOwner().propertiesRecursive();
 
     properties.insert(
         properties.end(),
@@ -107,15 +110,24 @@ std::vector<properties::Property*> allProperties() {
         p.end()
     );
 
+    std::vector<properties::Property*> q =
+        OsEng.virtualPropertyManager().propertiesRecursive();
+
+    properties.insert(
+        properties.end(),
+        q.begin(),
+        q.end()
+    );
+
     const Scene* graph = sceneGraph();
     std::vector<SceneGraphNode*> nodes = graph->allSceneGraphNodes();
 
     for (SceneGraphNode* n : nodes) {
-        auto p = n->propertiesRecursive();
+        std::vector<properties::Property*> props = n->propertiesRecursive();
         properties.insert(
             properties.end(),
-            p.begin(),
-            p.end()
+            props.begin(),
+            props.end()
         );
     }
 

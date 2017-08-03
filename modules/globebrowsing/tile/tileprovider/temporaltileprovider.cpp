@@ -22,28 +22,36 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#ifdef GLOBEBROWSING_USE_GDAL
+
 #include <modules/globebrowsing/tile/tileprovider/temporaltileprovider.h>
 
-#include <modules/globebrowsing/tile/tileprovider/cachingtileprovider.h>
+#include <modules/globebrowsing/tile/tileprovider/defaulttileprovider.h>
 
+#include <ghoul/filesystem/filesystem>
 #include <ghoul/logging/logmanager.h>
 
 #include "cpl_minixml.h"
+#include <fmt/format.h>
 #include <fstream>
 
 namespace {
-    const std::string _loggerCat = "TemporalTileProvider";
+    const char* _loggerCat = "TemporalTileProvider";
 
-    const char* KeyDoPreProcessing = "DoPreProcessing";
-    const char* KeyMinimumPixelSize = "MinimumPixelSize";
     const char* KeyFilePath = "FilePath";
-    const char* KeyCacheSize = "CacheSize";
-    const char* KeyFlushInterval = "FlushInterval";
-}
+    const char* KeyBasePath = "BasePath";
+    const char* KeyPreCacheStartTime = "PreCacheStartTime";
+    const char* KeyPreCacheEndTime = "PreCacheEndTime";
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+    static const openspace::properties::Property::PropertyInfo FilePathInfo = {
+        "FilePath",
+        "File Path",
+        "This is the path to the XML configuration file that describes the temporal tile "
+        "information."
+    };
+} // namespace
+
+namespace openspace::globebrowsing::tileprovider {
     
 const char* TemporalTileProvider::URL_TIME_PLACEHOLDER("${OpenSpaceTimeId}");
 
@@ -54,25 +62,73 @@ const char* TemporalTileProvider::TemporalXMLTags::TIME_RESOLUTION =
 const char* TemporalTileProvider::TemporalXMLTags::TIME_FORMAT = "OpenSpaceTimeIdFormat";
 
 TemporalTileProvider::TemporalTileProvider(const ghoul::Dictionary& dictionary) 
-    : _initDict(dictionary) 
+    : _initDict(dictionary)
+    , _filePath(FilePathInfo)
+    , _successfulInitialization(false)
 {
+    std::string filePath;
+    dictionary.getValue<std::string>(KeyFilePath, filePath);
+    try {
+        filePath = absPath(filePath);
+    }
+    catch (const std::runtime_error&) {
+        // File path was not a path to a file but a GDAL config or empty
+    }
+  
+    _filePath.setValue(filePath);
+    addProperty(_filePath);
+  
+    if (readFilePath()) {
+        const bool hasStart = dictionary.hasKeyAndValue<std::string>(KeyPreCacheStartTime);
+        const bool hasEnd = dictionary.hasKeyAndValue<std::string>(KeyPreCacheEndTime);
+        if (hasStart && hasEnd) {
+            const std::string start = dictionary.value<std::string>(KeyPreCacheStartTime);
+            const std::string end = dictionary.value<std::string>(KeyPreCacheEndTime);
+            std::vector<Time> preCacheTimes = _timeQuantizer.quantized(
+                Time(Time::convertTime(start)),
+                Time(Time::convertTime(end))
+            );
 
-    if (!dictionary.getValue<std::string>(KeyFilePath, _datasetFile)) {
-        throw std::runtime_error(std::string("Must define key '") + KeyFilePath + "'");
+            LINFO("Preloading: " << _filePath.value());
+            for (const Time& t : preCacheTimes) {
+                getTileProvider(t);
+            }
+        }
+        _successfulInitialization = true;
+    }
+    else {
+        LERROR("Unable to read file " + _filePath.value());
+        _successfulInitialization = false;
+    }  
+}
+
+bool TemporalTileProvider::readFilePath() {
+    std::ifstream in(_filePath.value().c_str());
+    std::string xml;
+    if (in.is_open()) {
+        // read file
+        xml = std::string(
+            std::istreambuf_iterator<char>(in),
+            (std::istreambuf_iterator<char>())
+        );
+    }
+    else {
+        // Assume that it is already an xml
+        xml = _filePath.value();
     }
 
-    std::ifstream in(_datasetFile.c_str());
-    if (!in.is_open()) {
-        throw ghoul::FileNotFoundError(_datasetFile);
+    try {
+        _initDict.setValue<std::string>(
+            KeyBasePath,
+            ghoul::filesystem::File(_filePath.value()).directoryName()
+        );
     }
-        
-    // read file
-    std::string xml(
-        std::istreambuf_iterator<char>(in),
-        (std::istreambuf_iterator<char>())
-    );
+    catch (const std::runtime_error&) {
+        // File path was not a path to a file but a GDAL config or empty
+    }
+
     _gdalXmlTemplate = consumeTemporalMetaData(xml);
-    _defaultTile = getTileProvider()->getDefaultTile();
+    return true;
 }
 
 std::string TemporalTileProvider::consumeTemporalMetaData(const std::string& xml) {
@@ -101,7 +157,10 @@ std::string TemporalTileProvider::consumeTemporalMetaData(const std::string& xml
 
     Time start; start.setTime(timeStart);
     Time end(Time::now());
-    if (timeEnd != "Now") {
+    if (timeEnd == "Yesterday") {
+        end.advanceTime(-60.0 * 60.0 * 24.0); // Go back one day
+    }
+    else if (timeEnd != "Now") {
         end.setTime(timeEnd);
     }
 
@@ -111,12 +170,12 @@ std::string TemporalTileProvider::consumeTemporalMetaData(const std::string& xml
     catch (const ghoul::RuntimeError& e) {
         throw ghoul::RuntimeError(
             "Could not create time quantizer for Temporal GDAL dataset '" +
-            _datasetFile + "'. " + e.message);
+            _filePath.value() + "'. " + e.message);
     }
     _timeFormat = TimeIdProviderFactory::getProvider(timeIdFormat);
     if (!_timeFormat) {
         throw ghoul::RuntimeError(
-            "Invalid Time Format " + timeIdFormat + " in " + _datasetFile
+            "Invalid Time Format " + timeIdFormat + " in " + _filePath.value()
         );
     }
 
@@ -126,7 +185,7 @@ std::string TemporalTileProvider::consumeTemporalMetaData(const std::string& xml
         gdalDescription = CPLSerializeXMLTree(gdalNode);
     }
     if (!gdalNode) {
-        CPLXMLNode* gdalNode = CPLSearchXMLNode(node, "FilePath");
+        gdalNode = CPLSearchXMLNode(node, "FilePath");
         gdalDescription = std::string(gdalNode->psChild->pszValue);
     }
         
@@ -139,7 +198,7 @@ std::string TemporalTileProvider::getXMLValue(CPLXMLNode* root, const std::strin
     CPLXMLNode * n = CPLSearchXMLNode(root, key.c_str());
     if (!n) {
         throw ghoul::RuntimeError(
-            "Unable to parse file " + _datasetFile + ". " + key + " missing."
+            "Unable to parse file " + _filePath.value() + ". " + key + " missing."
         );
     }
 
@@ -149,27 +208,43 @@ std::string TemporalTileProvider::getXMLValue(CPLXMLNode* root, const std::strin
 }
 
 TileDepthTransform TemporalTileProvider::depthTransform() {
-    ensureUpdated();
-    return _currentTileProvider->depthTransform();
+    if (_successfulInitialization) {
+        ensureUpdated();
+        return _currentTileProvider->depthTransform();    
+    }
+    else {
+        return { 1.0f, 0.0f};
+    }
 }
 
 Tile::Status TemporalTileProvider::getTileStatus(const TileIndex& tileIndex) {
-    ensureUpdated();
-    return _currentTileProvider->getTileStatus(tileIndex);
+    if (_successfulInitialization) {
+        ensureUpdated();
+        return _currentTileProvider->getTileStatus(tileIndex);
+    }
+    else {
+        return Tile::Status::Unavailable;
+    }
 }
 
 Tile TemporalTileProvider::getTile(const TileIndex& tileIndex) {
-    ensureUpdated();
-    return _currentTileProvider->getTile(tileIndex);
-}
-
-Tile TemporalTileProvider::getDefaultTile() {
-    return _defaultTile;
+    if (_successfulInitialization) {
+        ensureUpdated();
+        return _currentTileProvider->getTile(tileIndex);
+    }
+    else {
+        return Tile::TileUnavailable;
+    }
 }
 
 int TemporalTileProvider::maxLevel() {
-    ensureUpdated();
-    return _currentTileProvider->maxLevel();
+    if (_successfulInitialization) {
+        ensureUpdated();
+        return _currentTileProvider->maxLevel();
+    }
+    else {
+        return 0;
+    }
 }
 
 void TemporalTileProvider::ensureUpdated() {
@@ -180,24 +255,23 @@ void TemporalTileProvider::ensureUpdated() {
 }
 
 void TemporalTileProvider::update() {
-    auto newCurrent = getTileProvider();
-    if (newCurrent) {
-        _currentTileProvider = newCurrent;
+    if (_successfulInitialization) {
+        std::shared_ptr<TileProvider> newCurrent = getTileProvider();
+        if (newCurrent) {
+            _currentTileProvider = newCurrent;
+        }
+        _currentTileProvider->update();
     }
-    _currentTileProvider->update();
 }
 
 void TemporalTileProvider::reset() {
-    for (auto& it : _tileProviderMap) {
-        it.second->reset();
+    if (_successfulInitialization) {
+        for (std::pair<const TimeKey, std::shared_ptr<TileProvider>>& it : _tileProviderMap) {
+            it.second->reset();
+        }
     }
-    //auto end = _tileProviderMap.end();
-    //for (auto it = _tileProviderMap.begin(); it != end; it++) {
-    //    it->second->reset();
-    //}
 }
-
-std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(Time t) {
+std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(const Time& t) {
     Time tCopy(t);
     if (_timeQuantizer.quantize(tCopy, true)) {
         TimeKey timekey = _timeFormat->stringify(tCopy);
@@ -212,13 +286,15 @@ std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(Time t) {
     return nullptr;
 }
 
-std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(TimeKey timekey) {
-    auto it = _tileProviderMap.find(timekey);
+std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(
+    const TimeKey& timekey)
+{
+    std::unordered_map<TimeKey, std::shared_ptr<TileProvider>>::iterator it = _tileProviderMap.find(timekey);
     if (it != _tileProviderMap.end()) {
         return it->second;
     }
     else {
-        auto tileProvider = initTileProvider(timekey);
+        std::shared_ptr<TileProvider> tileProvider = initTileProvider(timekey);
 
         _tileProviderMap[timekey] = tileProvider;
         return tileProvider;
@@ -226,9 +302,23 @@ std::shared_ptr<TileProvider> TemporalTileProvider::getTileProvider(TimeKey time
 }
 
 std::shared_ptr<TileProvider> TemporalTileProvider::initTileProvider(TimeKey timekey) {
+    static const std::vector<std::string> AllowedToken = {
+        // From: http://www.gdal.org/frmt_wms.html
+        // @FRAGILE:  What happens if a user specifies one of these as path tokens?
+        // ---abock
+        "${x}",
+        "${y}",
+        "${z}",
+        "${version}",
+        "${format}",
+        "${layer}"
+    };
+
     std::string gdalDatasetXml = getGdalDatasetXML(timekey);
+    FileSys.expandPathTokens(gdalDatasetXml, AllowedToken);
+
     _initDict.setValue<std::string>(KeyFilePath, gdalDatasetXml);
-    auto tileProvider = std::make_shared<CachingTileProvider>(_initDict);
+    auto tileProvider = std::make_shared<DefaultTileProvider>(_initDict);
     return tileProvider;
 }
     
@@ -242,13 +332,34 @@ std::string TemporalTileProvider::getGdalDatasetXML(TimeKey timeKey) {
     size_t pos = xmlTemplate.find(URL_TIME_PLACEHOLDER);
     //size_t numChars = std::string(URL_TIME_PLACEHOLDER).length();
     size_t numChars = strlen(URL_TIME_PLACEHOLDER);
-    ghoul_assert(pos != std::string::npos, "Invalid dataset file");
+    // @FRAGILE:  This will only find the first instance. Dangerous if that instance is
+    // commented out ---abock
     std::string timeSpecifiedXml = xmlTemplate.replace(pos, numChars, timeKey);
     return timeSpecifiedXml;
 }
 
 std::string YYYY_MM_DD::stringify(const Time& t) const {
     return t.ISO8601().substr(0, 10);
+}
+
+std::string YYYYMMDD_hhmmss::stringify(const Time& t) const {
+    std::string ts = t.ISO8601().substr(0, 19);
+
+    // YYYY_MM_DDThh_mm_ss -> YYYYMMDD_hhmmss
+    ts.erase(std::remove(ts.begin(), ts.end(), '-'), ts.end());
+    ts.erase(std::remove(ts.begin(), ts.end(), ':'), ts.end());
+    replace(ts.begin(), ts.end(), 'T', '_');
+    return ts;
+}
+
+std::string YYYYMMDD_hhmm::stringify(const Time& t) const {
+    std::string ts = t.ISO8601().substr(0, 16);
+    
+    // YYYY_MM_DDThh_mm -> YYYYMMDD_hhmm
+    ts.erase(std::remove(ts.begin(), ts.end(), '-'), ts.end());
+    ts.erase(std::remove(ts.begin(), ts.end(), ':'), ts.end());
+    replace(ts.begin(), ts.end(), 'T', '_');
+    return ts;
 }
 
 std::string YYYY_MM_DDThhColonmmColonssZ::stringify(const Time& t) const {
@@ -274,9 +385,14 @@ void TimeIdProviderFactory::init() {
     _timeIdProviderMap.insert(std::pair<std::string, std::unique_ptr<TimeFormat>>(
         { "YYYY-MM-DDThh:mm:ssZ", std::make_unique<YYYY_MM_DDThhColonmmColonssZ>() }
     ));
-    initialized = true;
     _timeIdProviderMap.insert(std::pair<std::string, std::unique_ptr<TimeFormat>>(
         { "YYYY-MM-DDThh_mm_ssZ", std::make_unique<YYYY_MM_DDThh_mm_ssZ>() }
+    ));
+    _timeIdProviderMap.insert(std::pair<std::string, std::unique_ptr<TimeFormat>>(
+        { "YYYYMMDD_hhmmss", std::make_unique<YYYYMMDD_hhmmss>() }
+    ));
+    _timeIdProviderMap.insert(std::pair<std::string, std::unique_ptr<TimeFormat>>(
+        { "YYYYMMDD_hhmm" , std::make_unique<YYYYMMDD_hhmm>() }
     ));
     initialized = true;
 }
@@ -287,7 +403,7 @@ TimeFormat* TimeIdProviderFactory::getProvider(const std::string& format) {
     }
     ghoul_assert(
         _timeIdProviderMap.find(format) != _timeIdProviderMap.end(), 
-        "Unsupported Time format: " << format
+        "Unsupported Time format: " + format
     );
     return _timeIdProviderMap[format].get();
 }
@@ -348,6 +464,28 @@ bool TimeQuantizer::quantize(Time& t, bool clamp) const {
     }
 }
 
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+std::vector<Time> TimeQuantizer::quantized(const Time& start, const Time& end) const {
+    Time s = start;
+    quantize(s, true);
+
+    Time e = end;
+    quantize(e, true);
+
+    const double startSeconds = s.j2000Seconds();
+    const double endSeconds = e.j2000Seconds();
+    const double delta = endSeconds - startSeconds;
+
+    ghoul_assert(int(delta) % int(_resolution) == 0, "Quantization error");
+    const int nSteps = delta / _resolution;
+
+    std::vector<Time> result(nSteps + 1);
+    for (int i = 0; i <= nSteps; ++i) {
+        result[i].setTime(startSeconds + i * _resolution, false);
+    }
+
+    return result;
+}
+
+} // namespace openspace::globebrowsing::tileprovider
+
+#endif // GLOBEBROWSING_USE_GDAL

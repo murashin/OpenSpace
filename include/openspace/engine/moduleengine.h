@@ -25,13 +25,19 @@
 #ifndef __OPENSPACE_CORE___MODULEENGINE___H__
 #define __OPENSPACE_CORE___MODULEENGINE___H__
 
-#include <openspace/util/openspacemodule.h>
-#include <openspace/scripting/scriptengine.h>
-
 #include <memory>
 #include <vector>
 
+#include <openspace/util/openspacemodule.h>
+
+#include <ghoul/misc/assert.h>
+#include <algorithm>
+
+namespace ghoul::systemcapabilities { struct Version; }
+
 namespace openspace {
+
+namespace scripting { struct LuaLibrary; }
 
 /**
  * The ModuleEngine is the central repository for registering and accessing
@@ -74,14 +80,32 @@ public:
      * \return A list of all registered OpenSpaceModule%s
      */
     std::vector<OpenSpaceModule*> modules() const;
+    
+    /**
+     * Get the module subclass with given template argument. Requires the module subclass
+     * to have the public static member variable <code>name</code> which must be equal to
+     * the name of the module used in its constructor.
+     * \return a pointer to the module of the given subclass
+     */
+    template <class ModuleSubClass>
+    ModuleSubClass* module() const {
+        auto it = std::find_if(_modules.begin(), _modules.end(),
+            [](const std::unique_ptr<OpenSpaceModule>& module) {
+                return module->name() == ModuleSubClass::Name;
+            });
+        if (it != _modules.end()) {
+            return dynamic_cast<ModuleSubClass*>(it->get());
+        } else {
+            return nullptr;
+        }
+    }
 
     /**
      * Returns the combined minimum OpenGL version. The return value is the maximum
      * version of all registered modules' OpenGL versions.
      * \return The combined minimum OpenGL version
      */
-    ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Version
-        requiredOpenGLVersion() const;
+    ghoul::systemcapabilities::Version requiredOpenGLVersion() const;
 
     /**
     * Returns the Lua library that contains all Lua functions available to affect the

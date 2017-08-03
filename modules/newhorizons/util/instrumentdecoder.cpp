@@ -27,24 +27,28 @@
 #include <ghoul/misc/assert.h>
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/misc/dictionary.h>
+
 namespace {
-    const std::string _loggerCat  = "InstrumentDecoder";
+    const char* _loggerCat  = "InstrumentDecoder";
     const char* keyDetector = "DetectorType";
     const char* keySpice    = "Spice";
     const char* keyStopCommand = "StopCommand";
-}
+} // namespace
 
 namespace openspace {
    
-InstrumentDecoder::InstrumentDecoder(const ghoul::Dictionary& dictionary)
-{
+InstrumentDecoder::InstrumentDecoder(const ghoul::Dictionary& dictionary) {
     bool success = dictionary.getValue(keyDetector, _type);
     ghoul_assert(success, "Instrument has not provided detector type");
-    for_each(_type.begin(), _type.end(), [](char& in){ in = ::toupper(in); });
+    std::for_each(
+        _type.begin(),
+        _type.end(),
+        [](char& in){ in = static_cast<char>(toupper(in)); }
+    );
 
     if (!dictionary.hasKeyAndValue<std::string>(keyStopCommand) && _type == "SCANNER"){
         LWARNING("Scanner must provide stop command, please check mod file.");
-    }else{
+    } else {
         dictionary.getValue(keyStopCommand, _stopCommand);
     }
 
@@ -54,22 +58,22 @@ InstrumentDecoder::InstrumentDecoder(const ghoul::Dictionary& dictionary)
 
 
     _spiceIDs.resize(spiceDictionary.size());
-    for (int i = 0; i < _spiceIDs.size(); ++i) {
+    for (size_t i = 0; i < _spiceIDs.size(); ++i) {
         std::string id;
         spiceDictionary.getValue(std::to_string(i + 1), id);
         _spiceIDs[i] = id;
     }
 }
 
-std::string InstrumentDecoder::getStopCommand(){
+std::string InstrumentDecoder::getStopCommand() {
     return _stopCommand;
 }
 
-std::string InstrumentDecoder::getDecoderType(){
+std::string InstrumentDecoder::getDecoderType() {
     return _type;
 }
 
-std::vector<std::string> InstrumentDecoder::getTranslation(){
+std::vector<std::string> InstrumentDecoder::getTranslation() {
     return _spiceIDs;
 }
 

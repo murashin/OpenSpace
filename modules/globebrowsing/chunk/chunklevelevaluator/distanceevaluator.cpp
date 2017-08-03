@@ -29,10 +29,9 @@
 #include <modules/globebrowsing/globes/renderableglobe.h>
 #include <modules/globebrowsing/rendering/layer/layermanager.h>
 #include <modules/globebrowsing/tile/tileprovider/tileprovider.h>
+#include <openspace/util/updatestructures.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace chunklevelevaluator {
+namespace openspace::globebrowsing::chunklevelevaluator {
     
 int Distance::getDesiredLevel(const Chunk& chunk, const RenderData& data) const {
     // Calculations are done in the reference frame of the globe
@@ -66,10 +65,8 @@ int Distance::getDesiredLevel(const Chunk& chunk, const RenderData& data) const 
     double scaleFactor =
         globe.generalProperties().lodScaleFactor * ellipsoid.minimumRadius();
     double projectedScaleFactor = scaleFactor / distance;
-    int desiredLevel = ceil(log2(projectedScaleFactor));
+    int desiredLevel = static_cast<int>(ceil(log2(projectedScaleFactor)));
     return desiredLevel;
 }
 
-} // namespace chunklevelevaluator
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::chunklevelevaluator

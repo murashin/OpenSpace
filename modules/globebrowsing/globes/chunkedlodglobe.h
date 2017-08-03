@@ -33,16 +33,11 @@
 
 #include <memory>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-namespace chunklevelevaluator {
-    class Evaluator;
-} // namespace chunklevelevaluator
+namespace chunklevelevaluator { class Evaluator; }
     
-namespace culling {
-    class ChunkCuller;
-} // namespace culling
+namespace culling { class ChunkCuller; }
 
 class Chunk;
 class ChunkNode;
@@ -61,7 +56,7 @@ public:
     bool deinitialize() override;
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
     /**
@@ -107,6 +102,8 @@ public:
      */
     float getHeight(glm::dvec3 position) const;
 
+    void notifyShaderRecompilation();
+
     const int minSplitDepth;
     const int maxSplitDepth;
 
@@ -121,6 +118,8 @@ private:
     static const TileIndex LEFT_HEMISPHERE_INDEX;
     static const TileIndex RIGHT_HEMISPHERE_INDEX;
 
+    const RenderableGlobe& _owner;
+  
     // Covers all negative longitudes
     std::unique_ptr<ChunkNode> _leftRoot;
 
@@ -138,10 +137,9 @@ private:
 
     std::shared_ptr<LayerManager> _layerManager;
 
-    const RenderableGlobe& _owner;
+    bool _shadersNeedRecompilation;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___CHUNKED_LOD_GLOBE___H__

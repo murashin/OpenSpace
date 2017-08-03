@@ -27,11 +27,9 @@
 
 #include <modules/globebrowsing/geometry/geodetic2.h>
 #include <modules/globebrowsing/tile/quad.h>
+#include <modules/globebrowsing/tile/tileindex.h>
 
-namespace openspace {
-namespace globebrowsing {
-    
-struct TileIndex;
+namespace openspace::globebrowsing {
 
 class GeodeticPatch {
 public:
@@ -111,7 +109,6 @@ private:
     Geodetic2 _halfSize;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___GEODETICPATCH___H__

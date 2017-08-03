@@ -31,8 +31,7 @@
 
 using std::numeric_limits;
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
 #define DEFAULT_FROM_LUA_LAMBDA(TYPE, DEFAULT_VALUE)                                     \
     [](lua_State* state, bool& success) -> TYPE {                                        \
@@ -60,6 +59,9 @@ namespace properties {
         if (success) {                                                                   \
             return v;                                                                    \
         }                                                                                \
+        else {                                                                           \
+            throw ghoul::RuntimeError("Conversion error for string: " + value);          \
+        }                                                                                \
     }
 
 #define DEFAULT_TO_STRING_LAMBDA(TYPE)                                                   \
@@ -68,16 +70,13 @@ namespace properties {
         return true;                                                                     \
     }
 
-REGISTER_NUMERICALPROPERTY_SOURCE(ULongProperty, unsigned long, (unsigned long)0,
+REGISTER_NUMERICALPROPERTY_SOURCE(ULongProperty, unsigned long, 0ul,
                                   numeric_limits<unsigned long>::lowest(),
-                                  numeric_limits<unsigned long>::max(), (unsigned long)1,
-                                  DEFAULT_FROM_LUA_LAMBDA(unsigned long,
-                                                          (unsigned long)(0)),
+                                  numeric_limits<unsigned long>::max(), 1ul,
+                                  DEFAULT_FROM_LUA_LAMBDA(unsigned long, 0ul),
                                   DEFAULT_TO_LUA_LAMBDA(unsigned long),
-                                  DEFAULT_FROM_STRING_LAMBDA(unsigned long,
-                                                          (unsigned long)(0)),
+                                  DEFAULT_FROM_STRING_LAMBDA(unsigned long, 0ul),
                                   DEFAULT_TO_STRING_LAMBDA(unsigned long),
                                   LUA_TNUMBER);
 
-}  // namespace properties
-} // namespace openspace
+} // namespace openspace::properties

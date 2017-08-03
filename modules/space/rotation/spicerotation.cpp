@@ -24,23 +24,34 @@
 
 #include <modules/space/rotation/spicerotation.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 
 #include <openspace/util/spicemanager.h>
 #include <openspace/util/time.h>
+#include <openspace/util/updatestructures.h>
 
 namespace {
-    const std::string _loggerCat = "SpiceRotation";
-    //const std::string keyGhosting = "EphmerisGhosting";
-
-    const char* KeySourceFrame = "SourceFrame";
-    const char* KeyDestinationFrame = "DestinationFrame";
     const char* KeyKernels = "Kernels";
-}
+
+    static const openspace::properties::Property::PropertyInfo SourceInfo = {
+        "SourceFrame",
+        "Source",
+        "This value specifies the source frame that is used as the basis for the "
+        "coordinate transformation. This has to be a valid SPICE name."
+    };
+
+    static const openspace::properties::Property::PropertyInfo DestinationInfo = {
+        "DestinationFrame",
+        "Destination",
+        "This value specifies the destination frame that is used for the coordinate "
+        "transformation. This has to be a valid SPICE name."
+    };
+} // namespace
 
 namespace openspace {
     
-Documentation SpiceRotation::Documentation() {
+documentation::Documentation SpiceRotation::Documentation() {
     using namespace openspace::documentation;
     return {
         "Spice Rotation",
@@ -53,25 +64,21 @@ Documentation SpiceRotation::Documentation() {
                 Optional::No
             },
             {
-                KeySourceFrame,
+                SourceInfo.identifier,
                 new StringAnnotationVerifier("A valid SPICE NAIF name or integer"),
-                "The source frame that is used as the basis for the coordinate "
-                "transformation. This has to be a valid SPICE name.",
+                SourceInfo.description,
                 Optional::No
             },
             {
-                KeyDestinationFrame,
+                DestinationInfo.identifier,
                 new StringAnnotationVerifier("A valid SPICE NAIF name or integer"),
-                "The destination frame that is used for the coordinate transformation. "
-                "This has to be a valid SPICE name.",
+                DestinationInfo.description,
                 Optional::No
             },
             {
                 KeyKernels,
                 new OrVerifier(
-                    new TableVerifier({
-                        { "*", new StringVerifier }
-                    }),
+                    new StringListVerifier,
                     new StringVerifier
                 ),
                 "A single kernel or list of kernels that this SpiceTranslation depends "
@@ -84,8 +91,8 @@ Documentation SpiceRotation::Documentation() {
 }
 
 SpiceRotation::SpiceRotation(const ghoul::Dictionary& dictionary)
-    : _sourceFrame("source", "Source", "")
-    , _destinationFrame("destination", "Destination", "")
+    : _sourceFrame(SourceInfo) // @TODO Missing documentation
+    , _destinationFrame(DestinationInfo)
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
@@ -93,8 +100,8 @@ SpiceRotation::SpiceRotation(const ghoul::Dictionary& dictionary)
         "SpiceRotation"
     );
 
-    _sourceFrame = dictionary.value<std::string>(KeySourceFrame);
-    _destinationFrame = dictionary.value<std::string>(KeyDestinationFrame);
+    _sourceFrame = dictionary.value<std::string>(SourceInfo.identifier);
+    _destinationFrame = dictionary.value<std::string>(DestinationInfo.identifier);
 
     if (dictionary.hasKeyAndValue<std::string>(KeyKernels)) {
         SpiceManager::ref().loadKernel(dictionary.value<std::string>(KeyKernels));
@@ -120,10 +127,10 @@ void SpiceRotation::update(const UpdateData& data) {
         _matrix = SpiceManager::ref().positionTransformMatrix(
             _sourceFrame,
             _destinationFrame,
-            data.time
+            data.time.j2000Seconds()
         );
     }
-    catch (...) {
+    catch (const SpiceManager::SpiceException&) {
         _matrix = glm::dmat3(1.0);
     }
 }

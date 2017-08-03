@@ -27,46 +27,42 @@
 
 #include <openspace/rendering/renderable.h>
 
+#include <openspace/properties/optionproperty.h>
 #include <openspace/properties/stringproperty.h>
 #include <openspace/properties/scalar/boolproperty.h>
-#include <openspace/properties/vector/vec2property.h>
-#include <openspace/util/updatestructures.h>
+#include <openspace/properties/scalar/floatproperty.h>
 
-namespace ghoul {
-    namespace filesystem {
-        class File;
-    }
-    namespace opengl {
-        class ProgramObject;
-        class Texture;
-    }
-}
+#include <ghoul/opengl/ghoul_gl.h>
+
+namespace ghoul::filesystem { class File; }
+
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
+} // namespace ghoul::opengl
 
 namespace openspace {
-    struct LinePoint;
+
+struct RenderData;
+struct UpdateData;
+
+namespace documentation { struct Documentation; }
+
+struct LinePoint;
 
 class RenderablePlane : public Renderable {
-
-    enum class Origin {
-        LowerLeft, LowerRight, UpperLeft, UpperRight, Center
-    };
-
 public:
-    enum class BlendMode : int {
-        Normal = 0,
-        Additive
-    };
-
     RenderablePlane(const ghoul::Dictionary& dictionary);
-    ~RenderablePlane();
 
     bool initialize() override;
     bool deinitialize() override;
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
+
+    static documentation::Documentation Documentation();
 
 private:
     void loadTexture();
@@ -74,21 +70,18 @@ private:
 
     properties::StringProperty _texturePath;
     properties::BoolProperty _billboard;
-    properties::BoolProperty _projectionListener;
-    properties::Vec2Property _size;
-
-    Origin _origin;
-    std::string _nodeName;
-
-    bool _planeIsDirty;
+    properties::FloatProperty _size;
+    properties::OptionProperty _blendMode;
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _shader;
-    bool _textureIsDirty;
     std::unique_ptr<ghoul::opengl::Texture> _texture;
-    BlendMode _blendMode;
-    ghoul::filesystem::File* _textureFile;
+    std::unique_ptr<ghoul::filesystem::File> _textureFile;
+
     GLuint _quad;
     GLuint _vertexPositionBuffer;
+
+    bool _planeIsDirty;
+    bool _textureIsDirty;
 };
 
 } // namespace openspace

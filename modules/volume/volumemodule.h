@@ -31,10 +31,9 @@ namespace openspace {
 
 class VolumeModule : public OpenSpaceModule {
 public:
+    constexpr static const char* Name = "Volume";
+
     VolumeModule();
-    
-protected:
-    void internalInitialize() override;
 };
 
 } // namespace openspace

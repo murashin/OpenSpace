@@ -43,14 +43,14 @@
 
 namespace ghoul {
     
-    namespace filesystem {
-        class File;
-    }
-    namespace opengl {
-        class ProgramObject;
-        class Texture;
-    }
-}
+namespace filesystem { class File; }
+
+namespace opengl {
+    class ProgramObject;
+    class Texture;
+} // namepsace opengl
+
+} // namespace ghoul
 
 namespace openspace {
 
@@ -71,12 +71,11 @@ public:
     void setResolution(glm::ivec2 res) override;
     void setNAaSamples(int nAaSamples) override;
 
-    void preRaycast(ghoul::opengl::ProgramObject& programObject);
-    void postRaycast(ghoul::opengl::ProgramObject& programObject);
+    void preRaycast(const RaycasterTask& raycasterTask);
+    void postRaycast(const RaycasterTask& raycasterTask);
 
     void update();
     void render(float blackoutFactor, bool doPerformanceMeasurements) override;
-
 
     /**
      * Update render data
@@ -84,6 +83,7 @@ public:
      */
     virtual void updateRendererData() override;
     virtual void raycastersChanged(VolumeRaycaster& raycaster, bool attached) override;
+
 private:
 
     void clear();
@@ -130,9 +130,6 @@ private:
     GLuint _vertexPositionBuffer;
     int _nAaSamples;
 
-
-    std::unique_ptr<RendererTasks> _rendererTasks;
-    std::unique_ptr<RenderData> _renderData;
     float _blackoutFactor;
 
     ghoul::Dictionary _rendererData;

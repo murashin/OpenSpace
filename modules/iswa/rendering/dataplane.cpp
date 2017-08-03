@@ -25,9 +25,11 @@
 #include <modules/iswa/rendering/dataplane.h>
 #include <modules/iswa/util/dataprocessortext.h>
 
+#include <ghoul/opengl/programobject.h>
+
 namespace {
-    const std::string _loggerCat = "DataPlane";
-}
+    const char* _loggerCat = "DataPlane";
+} // namespace
 
 namespace openspace {
 
@@ -56,7 +58,7 @@ bool DataPlane::initialize(){
             // and unregister backgroundvalues property.
             if(_autoFilter.value()){
                 _backgroundValues.setValue(_dataProcessor->filterValues());
-                _backgroundValues.setVisibility(properties::Property::Visibility::None);
+                _backgroundValues.setVisibility(properties::Property::Visibility::Hidden);
                 //_backgroundValues.setVisible(false);
             // else if autofilter is turned off, register backgroundValues 
             } else {
@@ -84,9 +86,9 @@ bool DataPlane::createGeometry() {
     // ============================
     // GLfloat x,y, z;
     float s = _data->spatialScale.x;
-    const GLfloat x = s*_data->scale.x/2.0;
-    const GLfloat y = s*_data->scale.y/2.0;
-    const GLfloat z = s*_data->scale.z/2.0;
+    const GLfloat x = s*_data->scale.x/2.f;
+    const GLfloat y = s*_data->scale.y/2.f;
+    const GLfloat z = s*_data->scale.z/2.f;
     const GLfloat w = _data->spatialScale.w;
 
     const GLfloat vertex_data[] = { // square of two triangles (sigh)

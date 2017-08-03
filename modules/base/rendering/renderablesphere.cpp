@@ -24,106 +24,194 @@
 
 #include <modules/base/rendering/renderablesphere.h>
 
+#include <openspace/documentation/documentation.h>
+#include <openspace/documentation/verifier.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/rendering/renderengine.h>
-#include <ghoul/io/texture/texturereader.h>
-#include <ghoul/opengl/textureunit.h>
-#include <ghoul/filesystem/filesystem.h>
-
 #include <openspace/util/powerscaledsphere.h>
+#include <openspace/util/updatestructures.h>
+
+#include <ghoul/filesystem/filesystem.h>
+#include <ghoul/io/texture/texturereader.h>
+#include <ghoul/opengl/texture.h>
+#include <ghoul/opengl/textureunit.h>
+#include <ghoul/opengl/programobject.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
 
 namespace {
-    static const std::string _loggerCat = "RenderableSphere";
-
-    const char* keySize = "Size";
-    const char* keySegments = "Segments";
-    const char* keyTexture = "Texture";
-    const char* keyOrientation = "Orientation";
-
     enum Orientation {
         Outside = 1,
         Inside = 2
     };
-}
+
+    static const openspace::properties::Property::PropertyInfo TextureInfo = {
+        "Texture",
+        "Texture",
+        "This value specifies an image that is loaded from disk and is used as a texture "
+        "that is applied to this sphere. This image is expected to be an equirectangular "
+        "projection."
+    };
+
+    static const openspace::properties::Property::PropertyInfo OrientationInfo = {
+        "Orientation",
+        "Orientation",
+        "Specifies whether the texture is applied to the inside of the sphere, the "
+        "outside of the sphere, or both."
+    };
+
+    static const openspace::properties::Property::PropertyInfo SegmentsInfo = {
+        "Segments",
+        "Number of Segments",
+        "This value specifies the number of segments that the sphere is separated in."
+    };
+
+    static const openspace::properties::Property::PropertyInfo SizeInfo = {
+        "Size",
+        "Size (in meters)",
+        "This value specifies the radius of the sphere in meters."
+    };
+
+    static const openspace::properties::Property::PropertyInfo TransparencyInfo = {
+        "Alpha",
+        "Transparency",
+        "This value determines the transparency of the sphere. If this value is set to "
+        "1, the sphere is completely opaque. At 0, the sphere is completely transparent."
+    };
+} // namespace
 
 namespace openspace {
 
+documentation::Documentation RenderableSphere::Documentation() {
+    using namespace documentation;
+    return {
+        "RenderableSphere",
+        "base_renderable_sphere",
+        {
+            {
+                SizeInfo.identifier,
+                new DoubleVerifier,
+                SizeInfo.description,
+                Optional::No
+            },
+            {
+                SegmentsInfo.identifier,
+                new IntVerifier,
+                SegmentsInfo.description,
+                Optional::No
+            },
+            {
+                TextureInfo.identifier,
+                new StringVerifier,
+                TextureInfo.description,
+                Optional::No
+            },
+            {
+                OrientationInfo.identifier,
+                new StringInListVerifier({ "Inside", "Outside", "Inside/Outside" }),
+                OrientationInfo.description,
+                Optional::Yes
+            },
+            {
+                TransparencyInfo.identifier,
+                new DoubleInRangeVerifier(0.0, 1.0),
+                TransparencyInfo.description,
+                Optional::Yes
+            }
+        }
+    };
+}
+
+
 RenderableSphere::RenderableSphere(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
-    , _texturePath("texture", "Texture")
-    , _orientation("orientation", "Orientation")
-    , _size("size", "Size", glm::vec2(1.f, 1.f), glm::vec2(0.f), glm::vec2(100.f))
-    , _segments("segments", "Segments", 8, 4, 100)
-    , _transparency("transparency", "Transparency", 1.f, 0.f, 1.f)
+    , _texturePath(TextureInfo)
+    , _orientation(OrientationInfo, properties::OptionProperty::DisplayType::Dropdown)
+    , _size(SizeInfo, 1.f, 0.f, 1e35f)
+    , _segments(SegmentsInfo, 8, 4, 1000)
+    , _transparency(TransparencyInfo, 1.f, 0.f, 1.f)
     , _shader(nullptr)
     , _texture(nullptr)
     , _sphere(nullptr)
     , _sphereIsDirty(false)
 {
-    if (dictionary.hasKeyAndValue<glm::vec2>(keySize)) {
-        glm::vec2 size;
-        dictionary.getValue(keySize, size);
-        _size = size;
-    }
+    documentation::testSpecificationAndThrow(
+        Documentation(),
+        dictionary,
+        "RenderableSphere"
+    );
 
-    if (dictionary.hasKeyAndValue<glm::vec2>(keySegments)) {
-        int segments;
-        dictionary.getValue(keySegments, segments);
-        _segments = segments;
-    }
+    _size = static_cast<float>(dictionary.value<double>(SizeInfo.identifier));
+    _segments = static_cast<int>(dictionary.value<double>(SegmentsInfo.identifier));
+    _texturePath = absPath(dictionary.value<std::string>(TextureInfo.identifier));
 
-    if (dictionary.hasKeyAndValue<std::string>(keyTexture)) {
-        std::string texture;
-        dictionary.getValue(keyTexture, texture);
-        _texturePath = absPath(texture);
-    }
+    _orientation.addOptions({
+        { Outside, "Outside" },
+        { Inside, "Inside" },
+        { Outside | Inside, "Inside/Outside" }
+    });
 
-    _orientation.addOption(Outside, "Outside");
-    _orientation.addOption(Inside, "Inside");
-    _orientation.addOption(Outside | Inside, "Outside + Inside");
-
-    if (dictionary.hasKeyAndValue<std::string>(keyOrientation)) {
-        std::string orientation;
-        dictionary.getValue(keyOrientation, orientation);
-        if (orientation == "Outside")
-            _orientation = Outside;
-        else if (orientation == "Inside")
+    if (dictionary.hasKey(OrientationInfo.identifier)) {
+        const std::string v = dictionary.value<std::string>(OrientationInfo.identifier);
+        if (v == "Inside") {
             _orientation = Inside;
-        else
+        }
+        else if (v == "Outside") {
+            _orientation = Outside;
+        }
+        else if (v == "Inside/Outside") {
             _orientation = Outside | Inside;
+        }
+        else {
+            throw ghoul::MissingCaseException();
+        }
     }
-
+    else {
+        _orientation = Outside;
+    }
     addProperty(_orientation);
+
     addProperty(_size);
     _size.onChange([this](){ _sphereIsDirty = true; });
+
     addProperty(_segments);
     _segments.onChange([this](){ _sphereIsDirty = true; });
 
+    _transparency.onChange([this](){
+        if (_transparency > 0.f && _transparency < 1.f) {
+            setRenderBin(Renderable::RenderBin::Transparent);
+        }
+        else {
+            setRenderBin(Renderable::RenderBin::Opaque);
+        }
+    });
+    if (dictionary.hasKey(TransparencyInfo.identifier)) {
+        _transparency = static_cast<float>(
+            dictionary.value<double>(TransparencyInfo.identifier)
+        );
+    }
     addProperty(_transparency);
 
     addProperty(_texturePath);
-    _texturePath.onChange(std::bind(&RenderableSphere::loadTexture, this));
+    _texturePath.onChange([this]() { loadTexture(); });
+
 }
 
 bool RenderableSphere::isReady() const {
-    return (_sphere != nullptr) && (_shader != nullptr) && (_texture != nullptr);
+    return _shader && _texture;
 }
 
 bool RenderableSphere::initialize() {
-    delete _sphere;
-    _sphere = new PowerScaledSphere(_size.value(), _segments);
+    _sphere = std::make_unique<PowerScaledSphere>(
+        PowerScaledScalar::CreatePSS(_size), _segments
+    );
     _sphere->initialize();
 
     // pscstandard
-    RenderEngine& renderEngine = OsEng.renderEngine();
-    _shader = renderEngine.buildRenderProgram("Sphere",
+    _shader = OsEng.renderEngine().buildRenderProgram("Sphere",
         "${MODULE_BASE}/shaders/sphere_vs.glsl",
         "${MODULE_BASE}/shaders/sphere_fs.glsl");
-    if (!_shader)
-        return false;
 
     loadTexture();
 
@@ -131,27 +219,20 @@ bool RenderableSphere::initialize() {
 }
 
 bool RenderableSphere::deinitialize() {
-    delete _sphere;
-    _sphere = nullptr;
-
     _texture = nullptr;
 
-    RenderEngine& renderEngine = OsEng.renderEngine();
     if (_shader) {
-        renderEngine.removeRenderProgram(_shader);
+        OsEng.renderEngine().removeRenderProgram(_shader);
         _shader = nullptr;
     }
-
 
     return true;
 }
 
-void RenderableSphere::render(const RenderData& data) {
-
+void RenderableSphere::render(const RenderData& data, RendererTasks&) {
     glm::mat4 transform = glm::mat4(1.0);
 
     transform = glm::rotate(transform, static_cast<float>(M_PI_2), glm::vec3(1, 0, 0));
-
 
     // Activate shader
     using IgnoreError = ghoul::opengl::ProgramObject::IgnoreError;
@@ -171,20 +252,40 @@ void RenderableSphere::render(const RenderData& data) {
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    
+    bool usingFramebufferRenderer =
+        OsEng.renderEngine().rendererImplementation() == RenderEngine::RendererImplementation::Framebuffer;
+
+    bool usingABufferRenderer =
+        OsEng.renderEngine().rendererImplementation() == RenderEngine::RendererImplementation::ABuffer;
+
+    if (usingABufferRenderer) {
+        _shader->setUniform("additiveBlending", true);
+    }
+
+    if (usingFramebufferRenderer) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    }
 
     _sphere->render();
+
+    if (usingFramebufferRenderer) {
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
 
     _shader->setIgnoreUniformLocationError(IgnoreError::No);
     _shader->deactivate();
 }
 
-void RenderableSphere::update(const UpdateData& data) {
-    if (_shader->isDirty())
+void RenderableSphere::update(const UpdateData&) {
+    if (_shader->isDirty()) {
         _shader->rebuildFromFile();
+    }
 
     if (_sphereIsDirty) {
-        delete _sphere;
-        _sphere = new PowerScaledSphere(_size.value(), _segments);
+        _sphere = std::make_unique<PowerScaledSphere>(
+            PowerScaledScalar::CreatePSS(_size), _segments
+        );
         _sphere->initialize();
         _sphereIsDirty = false;
     }
@@ -194,7 +295,10 @@ void RenderableSphere::loadTexture() {
     if (_texturePath.value() != "") {
         std::unique_ptr<ghoul::opengl::Texture> texture = ghoul::io::TextureReader::ref().loadTexture(_texturePath);
         if (texture) {
-            LDEBUG("Loaded texture from '" << absPath(_texturePath) << "'");
+            LDEBUGC(
+                "RenderableSphere",
+                "Loaded texture from '" << absPath(_texturePath) << "'"
+            );
             texture->uploadTexture();
 
             // Textures of planets looks much smoother with AnisotropicMipMap rather than linear

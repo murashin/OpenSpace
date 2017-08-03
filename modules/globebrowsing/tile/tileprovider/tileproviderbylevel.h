@@ -27,23 +27,22 @@
 
 #include <modules/globebrowsing/tile/tileprovider/tileprovider.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+#include <openspace/properties/stringproperty.h>
+
+namespace openspace::globebrowsing::tileprovider {
 
 class TileProviderByLevel : public TileProvider {
 public:
     TileProviderByLevel(const ghoul::Dictionary& dictionary);
     TileProviderByLevel(const std::string& imagePath);
-    virtual ~TileProviderByLevel() { }
+    virtual ~TileProviderByLevel() = default;
 
-    virtual Tile getTile(const TileIndex& tileIndex);
-    virtual Tile getDefaultTile();
-    virtual Tile::Status getTileStatus(const TileIndex& index);
-    virtual TileDepthTransform depthTransform();
-    virtual void update();
-    virtual void reset();
-    virtual int maxLevel();
+    virtual Tile getTile(const TileIndex& tileIndex) override;
+    virtual Tile::Status getTileStatus(const TileIndex& index) override;
+    virtual TileDepthTransform depthTransform() override;
+    virtual void update() override;
+    virtual void reset() override;
+    virtual int maxLevel() override;
 private:
     inline int providerIndex(int level) const;
     inline TileProvider* levelProvider(int level) const;
@@ -52,8 +51,6 @@ private:
     std::vector<std::shared_ptr<TileProvider>> _levelTileProviders;
 };
 
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::tileprovider
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___TILE_PROVIDER_BY_LEVEL___H__

@@ -35,21 +35,19 @@
 
 #include <ghoul/opengl/textureunit.h>
 
-#include <vector>
+#include <memory>
 #include <string>
+#include <vector>
 
-namespace ghoul {
-    namespace opengl {
-        class ProgramObject;
-        class Texture;
-    }
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
 }
 
 namespace openspace {
 
-namespace planetgeometry {
-class PlanetGeometry;
-}
+namespace documentation { struct Documentation; }
+namespace planetgeometry { class PlanetGeometry; }
 
 class RenderablePlanet : public Renderable {
 public:
@@ -68,18 +66,20 @@ public:
     };
 
 public:
-    explicit RenderablePlanet(const ghoul::Dictionary& dictionary);
-    ~RenderablePlanet();
+    RenderablePlanet(const ghoul::Dictionary& dictionary);
 
     bool initialize() override;
     bool deinitialize() override;
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
+
+    static documentation::Documentation Documentation();
 
 protected:
     void loadTexture();
+
 private:
     properties::StringProperty _colorTexturePath;
     properties::StringProperty _nightTexturePath;
@@ -93,16 +93,13 @@ private:
     
     properties::FloatProperty _heightExaggeration;
 
-    planetgeometry::PlanetGeometry* _geometry;
+    std::unique_ptr<planetgeometry::PlanetGeometry> _geometry;
     properties::BoolProperty _performShading;
-    properties::IntProperty _rotation;
     float _alpha;
     std::vector< ShadowConf > _shadowConfArray;
     float _planetRadius;
 
     glm::dmat3 _stateMatrix;
-    std::string _frame;
-    std::string _target;
     bool _hasNightTexture;
     bool _hasHeightTexture;
     bool _shadowEnabled;

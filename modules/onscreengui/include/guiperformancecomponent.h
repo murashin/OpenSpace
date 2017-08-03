@@ -34,12 +34,9 @@
 
 #include <memory>
 
-namespace ghoul {
-    class SharedMemory;
-}
+namespace ghoul { class SharedMemory; }
 
-namespace openspace {
-namespace gui {
+namespace openspace::gui {
 
 class GuiPerformanceComponent : public GuiComponent {
 public:
@@ -54,9 +51,9 @@ protected:
 
     properties::BoolProperty _sceneGraphIsEnabled;
     properties::BoolProperty _functionsIsEnabled;
+    properties::BoolProperty _outputLogs;
 };
 
-} // namespace gui
-} // namespace openspace
+} // namespace openspace::gui
 
 #endif // __OPENSPACE_MODULE_ONSCREENGUI___GUIPERFORMANCECOMPONENT___H__

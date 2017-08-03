@@ -26,18 +26,13 @@
 
 #include <ghoul/misc/assert.h>
 
-namespace {
-    const char*_loggerCat = "SkirtedGrid";
-}
-
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 SkirtedGrid::SkirtedGrid(unsigned int xSegments, unsigned int ySegments,
                          TriangleSoup::Positions usePositions,
                          TriangleSoup::TextureCoordinates useTextureCoordinates,
                          TriangleSoup::Normals useNormals)
-    : Grid(xSegments, ySegments, usePositions, useTextureCoordinates, useNormals)
+    : Grid(xSegments, ySegments)
 {
     _geometry = std::make_unique<TriangleSoup>(
         createElements(xSegments, ySegments),
@@ -65,10 +60,12 @@ int SkirtedGrid::ySegments() const {
     return _ySegments;
 }
 
-void SkirtedGrid::validate(int xSegments, int ySegments) {
+void SkirtedGrid::validate([[maybe_unused]] int xSegments, [[maybe_unused]] int ySegments)
+{
     ghoul_assert(
         xSegments > 0 && ySegments > 0,
-        "Resolution must be at least 1x1. (" + std::to_string(xSegments) + ", " + std::to_string(ySegments) + ")"
+        "Resolution must be at least 1x1. (" + std::to_string(xSegments) + ", " +
+            std::to_string(ySegments) + ")"
     );
 }
 
@@ -85,8 +82,8 @@ std::vector<GLuint> SkirtedGrid::createElements(int xSegments, int ySegments) {
 
     std::vector<GLuint> elements;
     elements.reserve(numElements(xSegments + 2, ySegments + 2));
-    for (unsigned int y = 0; y < ySegments + 2; y++) {
-        for (unsigned int x = 0; x < xSegments + 2; x++) {
+    for (int y = 0; y < ySegments + 2; y++) {
+        for (int x = 0; x < xSegments + 2; x++) {
 
             // x    v01---v11   x ..
             //       |  /  |
@@ -176,5 +173,4 @@ std::vector<glm::vec3> SkirtedGrid::createNormals(int xSegments, int ySegments) 
     return normals;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

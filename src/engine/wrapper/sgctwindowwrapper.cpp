@@ -22,19 +22,48 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include <ghoul/opengl/ghoul_gl.h>
-#include "sgct.h"
-
 #include <openspace/engine/wrapper/sgctwindowwrapper.h>
+
+#include "sgct.h"
 
 #undef near
 #undef far
 
 namespace {
-    const std::string GuiWindowName = "GUI";
-}
+    const char* GuiWindowTag = "GUI";
+
+    static const openspace::properties::Property::PropertyInfo EyeSeparationInfo = {
+        "EyeSeparation",
+        "Eye Separation",
+        "Sets a static eye separation for use in stereoscopic rendering. If no "
+        "stereoscopic rendering is performed, this value is unused."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ShowStatsGraphInfo = {
+        "ShowStatsGraph",
+        "Show Statistics Graph",
+        "Toggles the rendering of the SGCT statistics graph that is rendered on top of "
+        "every image. The statistics show the frame time, synchronization time, and many "
+        "other timings as reported by SGCT."
+    };
+} // namespace
 
 namespace openspace {
+
+SGCTWindowWrapper::SGCTWindowWrapper()
+    : _eyeSeparation(EyeSeparationInfo, 0.f, 0.f, 10.f)
+    , _showStatsGraph(ShowStatsGraphInfo, false)
+{
+    _showStatsGraph.onChange([this](){
+        sgct::Engine::instance()->setStatsGraphVisibility(_showStatsGraph);
+    });
+    addProperty(_showStatsGraph);
+
+    addProperty(_eyeSeparation);
+    _eyeSeparation.onChange([this](){
+        setEyeSeparationDistance(_eyeSeparation);
+    });
+}
     
 void SGCTWindowWrapper::terminate() {
     sgct::Engine::instance()->terminate();
@@ -110,9 +139,9 @@ glm::ivec2 SGCTWindowWrapper::currentWindowSize() const {
 }
     
 glm::ivec2 SGCTWindowWrapper::currentWindowResolution() const {
-    auto window = sgct::Engine::instance()->getCurrentWindowPtr();
     int x, y;
-    sgct::Engine::instance()->getCurrentWindowPtr()->getFinalFBODimensions(x, y);
+    auto window = sgct::Engine::instance()->getCurrentWindowPtr();
+    window->getFinalFBODimensions(x, y);
     return glm::ivec2(x, y);
 }
 
@@ -141,26 +170,33 @@ int SGCTWindowWrapper::currentNumberOfAaSamples() const {
 } 
     
 bool SGCTWindowWrapper::isRegularRendering() const {
-    // TODO: Needs to implement the nonlinear rendering check ---abock
-    
-    // sgct::SGCTWindow* w = sgct::Engine::instance()->getCurrentWindowPtr();
-    // !w->isUsingFisheyeRendering() does not exist anymore ---abock
-    //        if (_isMaster && !w->isUsingFisheyeRendering() && _console->isVisible()) {
-
-    return true;
+    sgct::SGCTWindow* w = sgct::Engine::instance()->getCurrentWindowPtr();
+    std::size_t nViewports = w->getNumberOfViewports();
+    (void)nViewports; // Unused in Release mode
+    ghoul_assert(nViewports > 0, "At least one viewport must exist at this time");
+    sgct_core::Viewport* vp = w->getViewport(0);
+    sgct_core::NonLinearProjection* nlp = vp->getNonLinearProjectionPtr();
+    return nlp == nullptr;
 }
 
 bool SGCTWindowWrapper::hasGuiWindow() const {
     auto engine = sgct::Engine::instance();
     for (size_t i = 0; i < engine->getNumberOfWindows(); ++i) {
-        if (engine->getWindowPtr(i)->getName() == GuiWindowName)
+        if (engine->getWindowPtr(i)->checkIfTagExists(GuiWindowTag)) {
             return true;
+        }
     }
     return false;
 }
 
 bool SGCTWindowWrapper::isGuiWindow() const {
-    return sgct::Engine::instance()->getCurrentWindowPtr()->getName() == GuiWindowName;
+    return sgct::Engine::instance()->getCurrentWindowPtr()->checkIfTagExists(
+        GuiWindowTag
+    );
+}
+    
+bool SGCTWindowWrapper::isMaster() const {
+    return sgct::Engine::instance()->isMaster();
 }
 
 bool SGCTWindowWrapper::isSwapGroupMaster() const {
@@ -170,7 +206,6 @@ bool SGCTWindowWrapper::isSwapGroupMaster() const {
 bool SGCTWindowWrapper::isUsingSwapGroups() const {
     return sgct::Engine::instance()->getCurrentWindowPtr()->isUsingSwapGroups();
 }
-
     
 glm::mat4 SGCTWindowWrapper::viewProjectionMatrix() const {
     return sgct::Engine::instance()->getCurrentModelViewProjectionMatrix();
@@ -203,8 +238,9 @@ bool SGCTWindowWrapper::isExternalControlConnected() const {
     
 void SGCTWindowWrapper::sendMessageToExternalControl(const std::vector<char>& message) const {
     sgct::Engine::instance()->sendMessageToExternalControl(
-                                                           message.data(),
-                                                           message.size());
+        message.data(),
+        static_cast<int>(message.size())
+    );
 }
     
 bool SGCTWindowWrapper::isSimpleRendering() const {

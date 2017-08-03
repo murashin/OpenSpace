@@ -25,19 +25,17 @@
 #include <modules/onscreengui/include/guitimecomponent.h>
 
 #include <openspace/engine/openspaceengine.h>
+#include <openspace/util/timemanager.h>
 #include <openspace/util/time.h>
 
 #include "imgui.h"
 
-namespace openspace {
-namespace gui {
+namespace openspace::gui {
 
-GuiTimeComponent::GuiTimeComponent()
-    : GuiComponent("Time")
-{}
+GuiTimeComponent::GuiTimeComponent() : GuiComponent("Time") {}
 
 void GuiTimeComponent::render() {
-    float deltaTime = static_cast<float>(Time::ref().deltaTime());
+    float deltaTime = static_cast<float>(OsEng.timeManager().time().deltaTime());
     
     bool changed = ImGui::SliderFloat("Delta Time", &deltaTime, -50000.f, 50000.f);
     if (changed) {
@@ -48,5 +46,4 @@ void GuiTimeComponent::render() {
     }
 }
 
-} // gui
-} // openspace
+} // namespace openspace gui

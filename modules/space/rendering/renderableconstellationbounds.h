@@ -29,10 +29,13 @@
 
 #include <openspace/properties/scalarproperty.h>
 #include <openspace/properties/selectionproperty.h>
+#include <openspace/properties/stringproperty.h>
 #include <ghoul/opengl/programobject.h>
 #include <array>
 
 namespace openspace {
+
+namespace documentation { struct Documentation; }
 
 /**
  * This class renders the constellation bounds as defined in
@@ -42,14 +45,6 @@ namespace openspace {
  * The bounds are drawn as lines on a sphere with variable radius, set by the
  * <code>_distance</code> property. Currently, all constellation bounds are lines, which
  * leads to artifacts if the radius is very small.
- * Renderable configuration attributes:
- * <code>File</code> [string] (required): The file that contains the bounds and the
- * abbreviations for the different constellations
- * <code>ConstellationFile</code> [string]: The file that contains the mapping between
- * abbreviations and full names. If the file is omitted, the abbreviations are used as the
- * full names.
- * <code>ReferenceFrame</code> [string]: The reference frame in which the points contained
- * in the <code>File</code> are stored in. Defaults to <code>J2000</code>
  */
 class RenderableConstellationBounds : public Renderable {
 public:
@@ -60,8 +55,9 @@ public:
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
-    void update(const UpdateData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
+
+    static documentation::Documentation Documentation();
 
 private:
     /// Stores the constellation bounds
@@ -98,15 +94,18 @@ private:
      */
     void selectionPropertyHasChanged();
 
-    std::string _vertexFilename; ///< The filename containing the constellation bounds
-    std::string _constellationFilename; ///< The file containing constellation names
+    /// The filename containing the constellation bounds
+    properties::StringProperty _vertexFilename;
+
+    /// The file containing constellation names
+    properties::StringProperty _constellationFilename; 
 
     std::unique_ptr<ghoul::opengl::ProgramObject> _program;
 
     /// The list of all loaded constellation bounds
     std::vector<ConstellationBound> _constellationBounds;
     
-    typedef std::array<float, 3> Vertex;
+    using Vertex = std::array<float, 3>;
     std::vector<Vertex> _vertexValues; ///< A list of all vertices of all bounds
 
     /// The radius of the celestial sphere onto which the bounds are drawn
@@ -114,11 +113,6 @@ private:
 
     /// The property that stores all indices of constellations that should be drawn
     properties::SelectionProperty _constellationSelection;
-
-    std::string _originReferenceFrame; ///< Reference frame in which bounds are defined
-    
-    /// Used to translate between the origin reference frame and the target frame
-    glm::dmat3 _stateMatrix;
 
     GLuint _vao;
     GLuint _vbo;

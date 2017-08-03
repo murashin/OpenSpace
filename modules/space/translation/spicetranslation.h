@@ -27,7 +27,6 @@
 
 #include <openspace/scene/translation.h>
 
-#include <openspace/documentation/documentation.h>
 #include <openspace/properties/stringproperty.h>
 
 namespace openspace {
@@ -38,15 +37,14 @@ public:
     glm::dvec3 position() const;
     void update(const UpdateData& data) override;
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 private:
     properties::StringProperty _target;
-    properties::StringProperty _origin;
+    properties::StringProperty _observer;
     properties::StringProperty _frame;
 
     glm::dvec3 _position;
-    bool _kernelsLoadedSuccessfully;
 };
     
 } // namespace openspace

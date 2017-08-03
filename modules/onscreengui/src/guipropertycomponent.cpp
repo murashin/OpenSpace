@@ -32,30 +32,26 @@
 #include "imgui.h"
 
 namespace {
-    const std::string _loggerCat = "GuiPropertyComponent";
+    const char* _loggerCat = "GuiPropertyComponent";
     const ImVec2 size = ImVec2(350, 500);
-}
 
-namespace openspace {
-
-namespace {
-int nVisibleProperties(const std::vector<properties::Property*>& properties,
-    properties::Property::Visibility visibility)
-{
-    return std::count_if(
-        properties.begin(),
-        properties.end(),
-        [visibility](properties::Property* p) {
-        using V = properties::Property::Visibility;
-        return
-            static_cast<std::underlying_type_t<V>>(visibility) >=
-            static_cast<std::underlying_type_t<V>>(p->visibility());
+    int nVisibleProperties(const std::vector<openspace::properties::Property*>& props,
+        openspace::properties::Property::Visibility visibility)
+    {
+        return static_cast<int>(std::count_if(
+            props.begin(),
+            props.end(),
+            [visibility](openspace::properties::Property* p) {
+                using V = openspace::properties::Property::Visibility;
+                return
+                    static_cast<std::underlying_type_t<V>>(visibility) >=
+                    static_cast<std::underlying_type_t<V>>(p->visibility());
+            }
+        ));
     }
-    );
-}
-}
+} // namespace
 
-namespace gui {
+namespace openspace::gui {
 
 GuiPropertyComponent::GuiPropertyComponent(std::string name) 
     : GuiComponent(std::move(name))
@@ -67,6 +63,10 @@ void GuiPropertyComponent::setSource(SourceFunction function) {
 
 void GuiPropertyComponent::setVisibility(properties::Property::Visibility visibility) {
     _visibility = visibility;
+}
+
+void GuiPropertyComponent::setHasRegularProperties(bool hasOnlyRegularProperties) {
+    _hasOnlyRegularProperties = hasOnlyRegularProperties;
 }
 
 void GuiPropertyComponent::renderPropertyOwner(properties::PropertyOwner* owner) {
@@ -94,7 +94,9 @@ void GuiPropertyComponent::renderPropertyOwner(properties::PropertyOwner* owner)
         }
     }
 
-    ImGui::Spacing();
+    if (!subOwners.empty()) {
+        ImGui::Spacing();
+    }
 
     using Properties = std::vector<properties::Property*>;
     std::map<std::string, Properties> propertiesByGroup;
@@ -119,7 +121,9 @@ void GuiPropertyComponent::renderPropertyOwner(properties::PropertyOwner* owner)
         }
     }
 
-    ImGui::Spacing();
+    if (!propertiesByGroup.empty()) {
+        ImGui::Spacing();
+    }
 
     for (properties::Property* prop : remainingProperies) {
         renderProperty(prop, owner);
@@ -131,8 +135,6 @@ void GuiPropertyComponent::render() {
     bool v = _isEnabled;
     ImGui::Begin(name().c_str(), &v, size, 0.5f);
     _isEnabled = v;
-
-    ImGui::Spacing();
 
     if (_function) {
         std::vector<properties::PropertyOwner*> owners = _function();
@@ -156,10 +158,14 @@ void GuiPropertyComponent::render() {
                     // Create a header in case we have multiple owners
                     return ImGui::CollapsingHeader(pOwner->name().c_str());
                 }
+                else if (!pOwner->name().empty()) {
+                    // If the owner has a name, print it first
+                    ImGui::Text("%s", pOwner->name().c_str());
+                    ImGui::Spacing();
+                    return true;
+                }
                 else {
                     // Otherwise, do nothing
-                    ImGui::Text(pOwner->name().c_str());
-                    ImGui::Spacing();
                     return true;
                 }
             };
@@ -176,7 +182,7 @@ void GuiPropertyComponent::render() {
 void GuiPropertyComponent::renderProperty(properties::Property* prop,
                                           properties::PropertyOwner* owner)
 {
-    using Func = std::function<void(properties::Property*, const std::string&)>;
+    using Func = std::function<void(properties::Property*, const std::string&, IsRegularProperty)>;
     static const std::map<std::string, Func> FunctionMapping = {
         { "BoolProperty", &renderBoolProperty },
         { "DoubleProperty", &renderDoubleProperty},
@@ -204,10 +210,22 @@ void GuiPropertyComponent::renderProperty(properties::Property* prop,
     if (v >= propV) {
         auto it = FunctionMapping.find(prop->className());
         if (it != FunctionMapping.end()) {
-            it->second(prop, owner->name());
+            if (owner) {
+                it->second(
+                    prop,
+                    owner->name(),
+                    IsRegularProperty(_hasOnlyRegularProperties)
+                );
+            }
+            else {
+                it->second(
+                    prop,
+                    "",
+                    IsRegularProperty(_hasOnlyRegularProperties)
+                );
+            }
         }
     }
 }
 
-} // gui
-} // openspace
+} // namespace openspace::gui

@@ -35,6 +35,7 @@
 #include <modules/newhorizons/util/instrumentdecoder.h>
 #include <modules/newhorizons/util/targetdecoder.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/util/factorymanager.h>
 
@@ -42,9 +43,7 @@
 
 namespace openspace {
 
-NewHorizonsModule::NewHorizonsModule()
-    : OpenSpaceModule("NewHorizons")
-{}
+NewHorizonsModule::NewHorizonsModule() : OpenSpaceModule(Name) {}
 
 void NewHorizonsModule::internalInitialize() {
     ImageSequencer::initialize();
@@ -69,8 +68,9 @@ void NewHorizonsModule::internalInitialize() {
     fDecoder->registerClass<TargetDecoder>("Target");
 }
 
-std::vector<Documentation> NewHorizonsModule::documentations() const {
+std::vector<documentation::Documentation> NewHorizonsModule::documentations() const {
     return {
+        RenderableFov::Documentation(),
         RenderableModelProjection::Documentation(),
         RenderablePlanetProjection::Documentation(),
         ProjectionComponent::Documentation()

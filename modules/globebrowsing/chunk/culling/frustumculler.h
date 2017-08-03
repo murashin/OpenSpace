@@ -29,9 +29,7 @@
 
 #include <modules/globebrowsing/geometry/aabb.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace culling {
+namespace openspace::globebrowsing::culling {
 
 /**
  * Culls all chunks that are completely outside the view frustum.
@@ -43,6 +41,7 @@ namespace culling {
  */
 class FrustumCuller : public ChunkCuller {
 public:
+    virtual ~FrustumCuller() override = default;
     /**
      * \param viewFrustum is the view space in normalized device coordinates space.
      * Hence it is an axis aligned bounding box and not a real frustum.
@@ -55,8 +54,6 @@ private:
     const AABB3 _viewFrustum;
 };
 
-} // namespace culling
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::culling
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___FRUSTUMCULLER___H__

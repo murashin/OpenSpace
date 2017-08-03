@@ -31,8 +31,7 @@
 
 #include <vector>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 class BasicGrid : public Grid {
 public:
@@ -51,8 +50,8 @@ public:
         TriangleSoup::TextureCoordinates useTextureCoordinates,
         TriangleSoup::Normals useNormals);
 
-    virtual int xSegments() const;
-    virtual int ySegments() const;
+    virtual int xSegments() const override;
+    virtual int ySegments() const override;
 
 private:
     std::vector<GLuint> createElements(int xRes, int yRes) override;
@@ -67,7 +66,6 @@ private:
     inline size_t numVertices(int xSegments, int ySegments);
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___BASICGRIDGEOMETRY___H__

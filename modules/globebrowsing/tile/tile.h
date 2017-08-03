@@ -26,17 +26,13 @@
 #define __OPENSPACE_MODULE_GLOBEBROWSING___TILE___H__
 
 #include <modules/globebrowsing/tile/tileindex.h>
-
 #include <modules/globebrowsing/tile/tileuvtransform.h>
 
 #include <memory>
 
-namespace ghoul { namespace opengl {
-    class Texture;
-}}
+namespace ghoul::opengl { class Texture; }
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 struct TileMetaData;
 struct TileUvTransform;
@@ -44,68 +40,68 @@ struct TileUvTransform;
 /**
  * Defines a status and may have a Texture and TileMetaData
  */
-struct Tile {
-    std::shared_ptr<ghoul::opengl::Texture> texture;
-    std::shared_ptr<TileMetaData> metaData;
-
-    /**
+class Tile {
+public:
+     /**
      * Describe if this Tile is good for usage (OK) or otherwise
      * the reason why it is not.
      */
-    enum class Status { 
-        /** 
-         * E.g when texture data is not currently in memory. 
+    enum class Status {
+        /**
+         * E.g when texture data is not currently in memory.
          * texture and tileMetaData are both null
          */
-        Unavailable, 
+        Unavailable,
 
         /**
-         * Can be set by <code>TileProvider</code>s if the requested 
-         * <code>TileIndex</code> is undefined for that particular 
-         * provider. 
+         * Can be set by <code>TileProvider</code>s if the requested
+         * <code>TileIndex</code> is undefined for that particular
+         * provider.
          * texture and metaData are both null
          */
-        OutOfRange, 
+        OutOfRange,
 
         /**
          * An IO Error happend
          * texture and metaData are both null
          */
-        IOError, 
+        IOError,
 
         /**
          * The Texture is uploaded to the GPU and good for usage.
          * texture is defined. metaData may be defined.
          */
-        OK 
-    } status;
-        
-    /**
-     * Instantiates a new tile with a single color. 
-     * 
-     * \param size The size of texture to be created
-     * \param color defined RGBA values in range 0-255.
-     *
-     * \returns a Tile with status OK and the a texture 
-     * with the requested size and color
-     */
-    static Tile createPlainTile(const glm::uvec2& size, const glm::uvec4& color);
+        OK
+    };
+    
+    Tile(ghoul::opengl::Texture* texture,
+         std::shared_ptr<TileMetaData> metaData,
+         Status status);
+    ~Tile() = default;
+
+    std::shared_ptr<TileMetaData> metaData() const { return _metaData; };
+    Status status() const { return _status; };
+    ghoul::opengl::Texture* texture() const {
+        return _texture;
+    };
 
     static glm::vec2 compensateSourceTextureSampling(glm::vec2 startOffset, 
         glm::vec2 sizeDiff, glm::uvec2 resolution, glm::vec2 tileUV);
-
     static glm::vec2 TileUvToTextureSamplePosition(const TileUvTransform& uvTransform,
         glm::vec2 tileUV, glm::uvec2 resolution);
-
     /**
-     * A tile with status unavailable that any user can return to 
-     * indicate that a tile was unavailable.
-     */
+    * A tile with status unavailable that any user can return to
+    * indicate that a tile was unavailable.
+    */
     static const Tile TileUnavailable;
+
+private:
+    ghoul::opengl::Texture* _texture;
+    std::shared_ptr<TileMetaData> _metaData;
+    Status _status;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___TILE___H__

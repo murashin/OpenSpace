@@ -32,8 +32,8 @@
 #include <fstream>
 
 namespace {
-    const std::string _loggerCat = "BrickManager";
-}
+    const char* _loggerCat = "BrickManager";
+} // namespace
 
 namespace openspace {
 
@@ -424,14 +424,12 @@ bool BrickManager::DiskToPBO(BUFFER_INDEX _pboIndex) {
 
                 }
             }
-
-            delete[] seqBuffer;
-
         } // if in pbo
 
         // Update the brick index
         brickIndex += sequence;
 
+        delete[] seqBuffer;
     }
 
     glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);

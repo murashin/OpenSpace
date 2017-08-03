@@ -25,14 +25,13 @@
 #ifndef __OPENSPACE_CORE___TIMERANGE___H__
 #define __OPENSPACE_CORE___TIMERANGE___H__
 
-#include <openspace/documentation/documentation.h>
-
 namespace ghoul { class Dictionary; }
 
 namespace openspace {
 
-struct TimeRange {
+namespace documentation { struct Documentation; }
 
+struct TimeRange {
     /**
     * Default constructor initializes an empty time range.
     */
@@ -70,7 +69,7 @@ struct TimeRange {
 
     bool includes(const TimeRange& o) const;
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
     double start;
     double end;

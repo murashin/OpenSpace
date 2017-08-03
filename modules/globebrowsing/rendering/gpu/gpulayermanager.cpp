@@ -26,40 +26,44 @@
 
 #include <modules/globebrowsing/rendering/layer/layermanager.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-void GPULayerManager::setValue(ProgramObject* programObject,
+void GPULayerManager::setValue(ghoul::opengl::ProgramObject* programObject,
                                const LayerManager& layerManager, 
                                const TileIndex& tileIndex)
 {
     auto layerGroups = layerManager.layerGroups();
     for (size_t i = 0; i < layerGroups.size(); ++i) {
-        gpuLayerGroups[i]->setValue(programObject, *layerGroups[i], tileIndex);
+        _gpuLayerGroups[i]->setValue(programObject, *layerGroups[i], tileIndex);
     }
 }
 
-void GPULayerManager::bind(ProgramObject* programObject, const LayerManager& layerManager)
+void GPULayerManager::bind(ghoul::opengl::ProgramObject* programObject,
+                           const LayerManager& layerManager)
 {
     auto layerGroups = layerManager.layerGroups();
-    if (gpuLayerGroups.size() != layerGroups.size()) {
-        gpuLayerGroups.resize(layerGroups.size());
-        for (auto& gpuLayerGroup : gpuLayerGroups){
+    if (_gpuLayerGroups.size() != layerGroups.size()) {
+        _gpuLayerGroups.resize(layerGroups.size());
+        for (auto& gpuLayerGroup : _gpuLayerGroups){
             gpuLayerGroup = std::make_unique<GPULayerGroup>();
         }
     }
     
     for (size_t i = 0; i < layerGroups.size(); ++i) {
-        std::string nameBase = LayerManager::LAYER_GROUP_NAMES[i];
-        gpuLayerGroups[i]->bind(programObject, *layerGroups[i], nameBase, i);
+        const std::string& nameBase = layergroupid::LAYER_GROUP_NAMES[i];
+        _gpuLayerGroups[i]->bind(
+            programObject,
+            *layerGroups[i],
+            nameBase,
+            static_cast<int>(i)
+        );
     }
 }
 
 void GPULayerManager::deactivate() {
-    for (size_t i = 0; i < gpuLayerGroups.size(); ++i) {
-        gpuLayerGroups[i]->deactivate();
+    for (std::unique_ptr<GPULayerGroup>& l : _gpuLayerGroups) {
+        l->deactivate();
     }
 }
 
-}  // namespace globebrowsing
-}  // namespace openspace
+}  // namespace openspace::globebrowsing

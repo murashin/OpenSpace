@@ -32,7 +32,8 @@
 #include <ghoul/opengl/texture.h>
 
 namespace openspace {
-class RenderableSphericalGrid : public Renderable{
+
+class RenderableSphericalGrid : public Renderable {
 public:
     RenderableSphericalGrid(const ghoul::Dictionary& dictionary);
     ~RenderableSphericalGrid();
@@ -42,7 +43,7 @@ public:
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
 protected:
@@ -62,7 +63,6 @@ protected:
     bool staticGrid;
     std::string _parentsRotation;
     glm::dmat3 _parentMatrix;
-    PowerScaledScalar _radius;
 
     GLuint _vaoID = 3;
     GLuint _vBufferID = 4;

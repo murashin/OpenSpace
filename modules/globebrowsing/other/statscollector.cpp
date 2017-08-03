@@ -28,19 +28,18 @@
 #include <iomanip>
 #include <string>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 StatsCollector::StatsCollector(const std::string& filename, int dumpEveryXRecord,
                                Enabled enabled, const std::string & delimiter)
-    : _filename(filename)
+    : i(TemplatedStatsCollector<long long>(_enabled, delimiter))
+    , d(TemplatedStatsCollector<double>(_enabled, delimiter))
+    , _filename(filename)
+    , _delimiter(delimiter)
     , _dumpEveryXRecord(dumpEveryXRecord)
     , _recordsSinceLastDump(0)
     , _enabled(enabled)
-    , _delimiter(delimiter)
     , _hasWrittenHeader(false)
-    , i(TemplatedStatsCollector<long long>(_enabled, delimiter))
-    , d(TemplatedStatsCollector<double>(_enabled, delimiter))
 {}
 
 StatsCollector::~StatsCollector() {
@@ -118,5 +117,4 @@ void StatsCollector::writeData() {
     ofs.close();
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

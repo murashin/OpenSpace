@@ -22,49 +22,25 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#include <modules/globebrowsing/tile/tiledataset.h>
+#include <modules/globebrowsing/tile/tile.h>
 
-#include <gdal_priv.h>
+#include <modules/globebrowsing/tile/rawtiledatareader/rawtiledatareader.h>
+#include <modules/globebrowsing/tile/tilemetadata.h>
 
 namespace {
-    const std::string _loggerCat = "Tile";
-}
+    const char* _loggerCat = "Tile";
+} // namespace
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-const Tile Tile::TileUnavailable = {nullptr, nullptr, Tile::Status::Unavailable };
-    
-Tile Tile::createPlainTile(const glm::uvec2& size, const glm::uvec4& color) {
-    using namespace ghoul::opengl;
-        
-    // Create pixel data
-    int numBytes = size.x * size.y * 4 * 1;
-    char* pixels = new char[numBytes];
-    size_t numPixels = size.x * size.y;
-    size_t i = 0;
-    for (size_t p = 0; p < numPixels; p++){
-        pixels[i++] = color.r;
-        pixels[i++] = color.g;
-        pixels[i++] = color.b;
-        pixels[i++] = color.a;
-    }
+const Tile Tile::TileUnavailable = Tile(nullptr, nullptr, Tile::Status::Unavailable);
 
-    // Create ghoul texture
-    auto texture = std::make_shared<Texture>(glm::uvec3(size, 1));
-    texture->setDataOwnership(Texture::TakeOwnership::Yes);
-    texture->setPixelData(pixels);
-    texture->uploadTexture();
-    texture->setFilter(ghoul::opengl::Texture::FilterMode::Linear);
-
-    // Create tile
-    Tile tile;
-    tile.status = Tile::Status::OK;
-    tile.metaData = nullptr;
-    tile.texture = texture;
-
-    return tile;
-}
+Tile::Tile(ghoul::opengl::Texture* texture,
+    std::shared_ptr<TileMetaData> metaData, Status status)
+    : _texture(texture)
+    , _metaData(metaData)
+    , _status(status)
+{ }
 
 glm::vec2 Tile::compensateSourceTextureSampling(glm::vec2 startOffset, glm::vec2 sizeDiff,
                                                 glm::uvec2 resolution, glm::vec2 tileUV)
@@ -81,12 +57,11 @@ glm::vec2 Tile::TileUvToTextureSamplePosition(const TileUvTransform& uvTransform
 {
     glm::vec2 uv = uvTransform.uvOffset + uvTransform.uvScale * tileUV;
     uv = compensateSourceTextureSampling(
-        TileDataset::tilePixelStartOffset,
-        TileDataset::tilePixelSizeDifference,
+        TileTextureInitData::tilePixelStartOffset,
+        TileTextureInitData::tilePixelSizeDifference,
         resolution,
         uv);
     return uv;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

@@ -24,12 +24,9 @@
 
 #include <modules/globebrowsing/other/threadpool.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-Worker::Worker(ThreadPool& pool)
-    : pool(pool)
-{}
+Worker::Worker(ThreadPool& pool) : pool(pool) {}
 
 void Worker::operator()() {
     std::function<void()> task;
@@ -67,10 +64,17 @@ ThreadPool::ThreadPool(size_t numThreads)
     }
 }
 
+ThreadPool::ThreadPool(const ThreadPool& toCopy)
+    : ThreadPool(toCopy.workers.size())
+{ }
+
 // the destructor joins all threads
 ThreadPool::~ThreadPool() {
     // stop all threads
-    stop = true;
+    {
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        stop = true;
+    }
     condition.notify_all();
 
     // join them
@@ -99,5 +103,4 @@ void ThreadPool::clearTasks() {
     } // release lock
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

@@ -32,8 +32,7 @@
 #include <memory>
 #include <vector>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 /**
  * Abstract class defining an interface used for geometries with grid structures.
@@ -43,11 +42,7 @@ namespace globebrowsing {
  */
 class Grid {
 public:
-    Grid(int xSegments, int ySegments,
-        TriangleSoup::Positions usePositions = TriangleSoup::Positions::No,
-        TriangleSoup::TextureCoordinates useTextures =
-        TriangleSoup::TextureCoordinates::No,
-        TriangleSoup::Normals useNormals = TriangleSoup::Normals::No);
+    Grid(int xSegments, int ySegments);
     
     virtual ~Grid() = default;
 
@@ -101,7 +96,6 @@ protected:
     const int _ySegments;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___GRIDGEOMETRY___H__

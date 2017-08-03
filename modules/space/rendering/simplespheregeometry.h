@@ -28,38 +28,37 @@
 #include <modules/space/rendering/planetgeometry.h>
 
 #include <openspace/properties/scalar/intproperty.h>
-#include <openspace/properties/vector/vec4property.h>
+#include <openspace/properties/vector/vec3property.h>
 
 namespace openspace {
+    class Renderable;
+    class PowerScaledSphere;
+} // namespace openspace
 
-class Renderable;
-class PowerScaledSphere;
+namespace openspace::documentation { struct Documentation; }
 
-namespace planetgeometry {
+namespace openspace::planetgeometry {
 
 class SimpleSphereGeometry : public PlanetGeometry {
 public:
     SimpleSphereGeometry(const ghoul::Dictionary& dictionary);
     ~SimpleSphereGeometry();
 
-
     bool initialize(Renderable* parent) override;
     void deinitialize() override;
     void render() override;
-    PowerScaledSphere* _planet;
+
+    static documentation::Documentation Documentation();
 
 private:
     void createSphere();
 
-    glm::vec2 _modRadius;
-    properties::Vec4Property _realRadius;
+    float _modRadius;
+    properties::Vec3Property _radius;
     properties::IntProperty _segments;
-    std::string _name;
-
     PowerScaledSphere* _sphere;
 };
 
-} // namespace planetgeometry
-} // namespace openspace
+} // namespace openspace::planetgeometry
 
 #endif // __OPENSPACE_MODULE_SPACE___SIMPLESPHEREGEOMETRY___H__

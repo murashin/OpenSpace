@@ -26,37 +26,39 @@
 #define __OPENSPACE_MODULE_GLOBEBROWSING___RAWTILE___H__
 
 #include <modules/globebrowsing/tile/tileindex.h>
+#include <modules/globebrowsing/tile/textureformat.h>
 
 #include <ghoul/glm.h>
 
 #include <memory>
 #include <sstream>
 
-#include <cpl_error.h>
-
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
     
 struct TileMetaData;
+class TileTextureInitData;
 
 struct RawTile {
+    enum class ReadError {
+        None = 0,
+        Debug = 1,
+        Warning = 2,
+        Failure = 3,
+        Fatal = 4
+    };
+
     RawTile();
 
     char* imageData;
-    glm::uvec3 dimensions;
     std::shared_ptr<TileMetaData> tileMetaData;
+    std::shared_ptr<TileTextureInitData> textureInitData;
     TileIndex tileIndex;
-    CPLErr error;
-    size_t nBytesImageData;
-
-    void serializeMetaData(std::ostream& s);
-    static RawTile deserializeMetaData(std::istream& s);
+    ReadError error;
+    GLuint pbo;
    
-    static RawTile createDefaultRes();
+    static RawTile createDefault(const TileTextureInitData& initData);
 };
 
-} // namespace globebrowsing
-} // namespace openspace
-
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___RAWTILE___H__

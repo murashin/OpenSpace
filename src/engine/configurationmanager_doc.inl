@@ -22,11 +22,12 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 
 namespace openspace {
 
-Documentation ConfigurationManager::Documentation() {
+documentation::Documentation ConfigurationManager::Documentation() {
     using namespace documentation;
 
     return {
@@ -37,7 +38,8 @@ Documentation ConfigurationManager::Documentation() {
             ConfigurationManager::KeyConfigSgct,
             new StringAnnotationVerifier("A valid SGCT configuration file"),
             "The SGCT configuration file that determines the window and view frustum "
-            "settings that are being used when OpenSpace is started."
+            "settings that are being used when OpenSpace is started.",
+            Optional::No
         },
         {
             ConfigurationManager::KeyConfigScene,
@@ -47,7 +49,16 @@ Documentation ConfigurationManager::Documentation() {
             "The scene description that is used to populate the application after "
             "startup. The scene determines which objects are loaded, the startup "
             "time and other scene-specific settings. More information is provided in "
-            "the Scene documentation."
+            "the Scene documentation.",
+            Optional::No
+        },
+        {
+            ConfigurationManager::KeyConfigTask,
+            new StringAnnotationVerifier(
+                "A valid task file as described in the Task documentation"),
+                "The root task to be performed when launching the task runner "
+                "applicaition.",
+                Optional::Yes
         },
         {
             ConfigurationManager::KeyPaths,
@@ -55,7 +66,14 @@ Documentation ConfigurationManager::Documentation() {
             "A list of paths that are automatically registered with the file system. "
             "If a key X is used in the table, it is then useable by referencing ${X} "
             "in all other configuration files or scripts.",
-            Optional::Yes
+            Optional::No
+        },
+        {
+            ConfigurationManager::KeyPaths + '.' + ConfigurationManager::KeyCache,
+            new StringVerifier,
+            "The path to be used as a cache folder. If per scene caching is enabled, the "
+            "name of the scene will be appended to this folder",
+            Optional::No
         },
         {
             ConfigurationManager::KeyFonts,
@@ -68,6 +86,19 @@ Documentation ConfigurationManager::Documentation() {
         {
             ConfigurationManager::KeyLogging,
             new TableVerifier({
+                {
+                    ConfigurationManager::PartLogDir,
+                    new StringVerifier,
+                    "The directory for logs. Default value is \"${BASE_PATH}\"",
+                    Optional::Yes
+                },
+                {
+                    ConfigurationManager::PartLogPerformancePrefix,
+                    new StringVerifier,
+                    "A string to prefix PerformanceMeasurement logfiles."
+                    "Default value is \"PM-\"",
+                    Optional::Yes
+                },
                 {
                     ConfigurationManager::PartLogLevel,
                     new StringInListVerifier(
@@ -95,31 +126,8 @@ Documentation ConfigurationManager::Documentation() {
                     new TableVerifier({
                         {
                             "*",
-                            new TableVerifier({
-                                {
-                                    ConfigurationManager::PartType,
-                                    new StringInListVerifier({
-                                    // List from logfactory.cpp::createLog
-                                        "text", "html"
-                                    }),
-                                    "The type of the new log to be generated."
-                                },
-                                {
-                                    ConfigurationManager::PartFile,
-                                    new StringVerifier,
-                                    "The filename to which the log will be written."
-                                },
-                                {
-                                    ConfigurationManager::PartAppend,
-                                    new BoolVerifier,
-                                    "Determines whether the file will be cleared at "
-                                    "startup or if the contents will be appended to "
-                                    "previous runs.",
-                                    Optional::Yes
-                                }
-                            }),
-                            "Additional log files",
-                            Optional::Yes
+                            new ReferencingVerifier("core_logfactory"),
+                            "Additional log files"
                         }
                     }),
                     "Per default, log messages are written to the console, the "
@@ -146,143 +154,68 @@ Documentation ConfigurationManager::Documentation() {
         },
         {
             ConfigurationManager::KeyLuaDocumentation,
-            new TableVerifier({
-                {
-                    ConfigurationManager::PartType,
-                    new StringInListVerifier(
-                        // List from ScriptEngine::writeDocumentation
-                        { "text", "html" }
-                    ),
-                    "The type of documentation that will be written."
-                },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The filename that will be created on startup containing the "
-                    "documentation of available Lua functions. Any existing file "
-                    "will be silently overwritten."
-                }
-            }),
-            "Descriptions of whether and where to create a documentation file that "
-            "describes the available Lua functions that can be executed in scene "
-            "files or per console.",
+            new StringVerifier,
+            "The filename that will be created on startup containing the documentation "
+            "of available Lua functions that can be executed in scene files or per "
+            "console. Any existing file will be silently overwritten.",
             Optional::Yes
         },
         {
             ConfigurationManager::KeyPropertyDocumentation,
-            new TableVerifier({
-                {
-                    ConfigurationManager::PartType,
-                    new StringInListVerifier(
-                        // List taken from Scene::writePropertyDocumentation
-                        { "text", "html" }
-                    ),
-                    "The type of property documentation file that is created."
-                },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The file that will be created on startup containing a list of "
-                    "all properties in the scene. Any existing file will be silently "
-                    "overwritten."
-                }
-            }),
-            "Descriptions of whether and where to create a list of all properties "
-            "that were created in the current scene.",
+            new StringVerifier,
+            "The file that will be created on startup containing a list of all "
+            "properties in the scene. Any existing file will be silently overwritten.",
             Optional::Yes
         },
         {
             ConfigurationManager::KeyScriptLog,
-            new TableVerifier({
-                {
-                    ConfigurationManager::PartType,
-                    new StringInListVerifier(
-                        // List taken from ScriptEngine::writeLog
-                        { "text" }
-                        ),
-                        "The type of logfile that will be created."
-                },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The file that will be created on startup containing the log of "
-                    "all Lua scripts that are executed. Any existing file (including "
-                    "the results from previous runs) will be silently overwritten."
-                }
-            }),
-            "Contains a log of all Lua scripts that were executed in the last "
-            "session.",
+            new StringVerifier,
+            "The file that will be created on startup containing the log of all Lua "
+            "scripts that are executed in the last session. Any existing file (including "
+            "the results from previous runs) will be silently overwritten.",
             Optional::Yes
         },
         {
             ConfigurationManager::KeyKeyboardShortcuts,
-            new TableVerifier({
-                {
-                    ConfigurationManager::PartType,
-                    new StringInListVerifier(
-                        // List from InteractionHandler::writeKeyboardDocumentation
-                        { "text", "html" }
-                    ),
-                    "The type of keyboard binding documentation that should be "
-                    "written."
-                },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The file that will be created on startup containing the list of "
-                    "all keyboard bindings with their respective Lua scripts. Any "
-                    "previous file in this location will be silently overritten."
-                }
-            }),
-            "Contains the collection of all keyboard shortcuts that were collected "
-            "during startup. For each key, it mentions which scripts will be "
-            "executed in the current session.",
+            new StringVerifier,
+            "The file that will be created on startup containing the list of all "
+            "keyboard bindings with their respective Lua scripts. For each key, it "
+            "mentions which scripts will be executed in the current session.",
             Optional::Yes
         },
         {
             ConfigurationManager::KeyDocumentation,
-            new TableVerifier({
-                {
-                    ConfigurationManager::PartType,
-                    new StringInListVerifier(
-                        // List from DocumentationEngine::writeDocumentation
-                        { "text", "html" }
-                    ),
-                    "The type of documentation that should be written."
-                },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The file that will be created on startup containing this "
-                    "documentation. Any previous file in this location will be silently "
-                    "overritten."
-                }
-            }),
-            "This defines the location and type of this documentation file.",
+            new StringVerifier,
+            "The file that will be created on startup containing this documentation. Any "
+            "previous file in this location will be silently overwritten.",
             Optional::Yes
         },
         {
             ConfigurationManager::KeyFactoryDocumentation,
+            new StringVerifier,
+            "The file that will be created on startup containing the factory "
+            "documentation which shows the different types of objects that can be "
+            "created in the current application configuration. Any previous file in this "
+            "location will be silently overritten.",
+            Optional::Yes
+        },
+        {
+            ConfigurationManager::KeyLauncher,
             new TableVerifier({
                 {
-                    ConfigurationManager::PartType,
+                    ConfigurationManager::PartLogLevel,
                     new StringInListVerifier(
-                        // List from FactoryManager::writeDocumentation
-                        { "text", "html" }
+                    // List from logmanager.cpp::levelFromString
+                    { "Trace", "Debug", "Info", "Warning", "Error", "Fatal", "None" }
                     ),
-                    "The type of documentation that should be written."
+                    "The severity of log messages that will be displayed. Only "
+                    "messages of the selected level or higher will be displayed. All "
+                    "levels below will be silently discarded. The order of "
+                    "severities is: Debug < Info < Warning < Error < Fatal < None.",
+                    Optional::Yes
                 },
-                {
-                    ConfigurationManager::PartFile,
-                    new StringVerifier,
-                    "The file that will be created on startup containing the factory "
-                    "documentation. Any previous file in this location will be silently "
-                    "overritten."
-                }
             }),
-            "This defines the location and type of the factory documentation file, which "
-            "shows the different types of objects that can be created in the current "
-            "application configuration.",
+            "Configurations for the Launcher & syncing application.",
             Optional::Yes
         },
         {
@@ -344,6 +277,16 @@ Documentation ConfigurationManager::Documentation() {
             Optional::Yes
         },
         {
+            ConfigurationManager::KeyDisableSceneOnMaster,
+            new BoolVerifier,
+            "Toggles whether a potential scene transformation matrix, for example as "
+            "specified in an SGCT configuration file, should apply to the master node. "
+            "With some configurations, applying such a transformation complicates the "
+            "interaction and it is thus desired to disable the transformation. The "
+            "default is false.",
+            Optional::Yes
+        },
+        {
             ConfigurationManager::KeyHttpProxy,
             new TableVerifier({
                 {
@@ -380,7 +323,97 @@ Documentation ConfigurationManager::Documentation() {
             "This defines the use for a proxy when fetching data over http."
             "No proxy will be used if this is left out.",
             Optional::Yes
-            }
+        },
+        {
+            ConfigurationManager::KeyOpenGLDebugContext,
+            new TableVerifier({
+                {
+                    ConfigurationManager::PartActivate,
+                    new BoolVerifier,
+                    "Determines whether the OpenGL context should be a debug context",
+                    Optional::No
+                },
+                {
+                    ConfigurationManager::PartSynchronous,
+                    new BoolVerifier,
+                    "Determines whether the OpenGL debug callbacks are performed "
+                    "synchronously. If set to <True> the callbacks are in the same thead "
+                    "as the context and in the scope of the OpenGL function that "
+                    "triggered the message. The default value is <True>.",
+                    Optional::Yes
+                },
+                {
+                    ConfigurationManager::PartFilterIdentifier,
+                    new TableVerifier({{
+                        "*",
+                        new TableVerifier({
+                            {
+                                ConfigurationManager::PartFilterIdentifierIdentifier,
+                                new IntVerifier,
+                                "The identifier that is to be filtered",
+                                Optional::No
+                            },
+                            {
+                                ConfigurationManager::PartFilterIdentifierSource,
+                                new StringInListVerifier({
+                                    // Taken from ghoul::debugcontext.cpp
+                                    "API", "Window System", "Shader Compiler",
+                                    "Third Party", "Application", "Other", "Don't care"
+                                }),
+                                "The source of the identifier to be filtered",
+                                Optional::No
+                            },
+                            {
+                                ConfigurationManager::PartFilterIdentifierType,
+                                new StringInListVerifier({
+                                    // Taken from ghoul::debugcontext.cpp
+                                    "Error", "Deprecated", "Undefined", "Portability",
+                                    "Performance", "Marker", "Push group", "Pop group",
+                                    "Other", "Don't care"
+                                }),
+                                "The type of the identifier to be filtered"
+                            }
+                        }),
+                        "Individual OpenGL debug message identifiers"
+                    }}),
+                    "A list of OpenGL debug messages identifiers that are filtered",
+                    Optional::Yes
+                },
+                {
+                    ConfigurationManager::PartFilterSeverity,
+                    new TableVerifier({
+                        {
+                            "*",
+                            new StringInListVerifier(
+                                // ghoul::debugcontext.cpp
+                                { "High", "Medium", "Low", "Notification" }
+                            )
+                        }
+                    }),
+                    "A list of severities that can are filtered out",
+                    Optional::Yes
+                }
+            }),
+            "Determines the settings for the creation of an OpenGL debug context.",
+            Optional::Yes
+        },
+        {
+            ConfigurationManager::KeyCheckOpenGLState,
+            new BoolVerifier,
+            "Determines whether the OpenGL state is checked after each OpenGL function "
+            "call. This will dramatically slow down the rendering, but will make finding "
+            "OpenGL errors easier. This defaults to 'false'.",
+            Optional::Yes
+        },
+        {
+            ConfigurationManager::KeyLogEachOpenGLCall,
+            new BoolVerifier,
+            "Determines whether each OpenGL call that happens should be logged using the "
+            "'TRACE' loglevel. This will bring the rendering to a crawl but provides "
+            "useful debugging features for the order in which OpenGL calls occur. This "
+            "defaults to 'false'.",
+            Optional::Yes
+        }
         }
     };
 };

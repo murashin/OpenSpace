@@ -27,19 +27,22 @@
 
 #include <modules/globebrowsing/tile/chunktile.h>
 #include <modules/globebrowsing/tile/tile.h>
-#include <modules/globebrowsing/other/lrucache.h>
+#include <modules/globebrowsing/cache/lrucache.h>
+#include <modules/globebrowsing/rendering/layer/layer.h>
+
+#include <openspace/properties/propertyowner.h>
+
+#include <ghoul/opengl/texture.h>
 
 #include <vector>
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+namespace openspace::globebrowsing::tileprovider {
     
 /**
  * Interface for providing <code>Tile</code>s given a 
  * <code>TileIndex</code>. 
  */
-class TileProvider {
+class TileProvider : public properties::PropertyOwner {
 public:
     /**
      * Factory method for instantiating different implementations of 
@@ -47,12 +50,14 @@ public:
      * define a key specifying what implementation of TileProvider
      * to be instantiated.
      */
-    static TileProvider* createFromDictionary(const ghoul::Dictionary& dictionary);
+    static std::unique_ptr<TileProvider> createFromDictionary(
+        layergroupid::TypeID layerTypeID,
+        const ghoul::Dictionary& dictionary);
 
     /** 
-     * Empty default constructor 
+     * Default constructor. 
      */
-    TileProvider() = default;
+    TileProvider();
 
     /**
      * Implementations of the TileProvider interface must implement 
@@ -66,7 +71,10 @@ public:
      * Virtual destructor that subclasses should override to do
      * clean up.
      */
-    virtual ~TileProvider() { }
+    virtual ~TileProvider() = default;
+
+    virtual bool initialize();
+    virtual bool deinitialize() { return true; };
 
     /**
      * Method for querying tiles, given a specified <code>TileIndex</code>.
@@ -93,14 +101,7 @@ public:
 
     virtual ChunkTilePile getChunkTilePile(TileIndex tileIndex, int pileSize);
 
-    /**
-     * TileProviders must be able to provide a defualt
-     * <code>Tile</code> which may be used by clients in cases when
-     * requested tiles were unavailable.
-     *
-     * \returns A default tile
-     */
-    virtual Tile getDefaultTile() = 0;
+    Tile getDefaultTile() const;
 
     /**
      * Returns the status of a <code>Tile</code>. The <code>Tile::Status</code>
@@ -140,12 +141,27 @@ public:
      * \returns the no data value for the dataset. Default is the minimum float avalue.
      */
     virtual float noDataValueAsFloat();
+
+    /**
+     * \returns a unique identifier for the <code>TileProvider<\code>. All
+     * <code>TileProviders<\code> have an ID starting at 0 from the first created.
+     * The maximum number of unique identifiers is UINT_MAX 
+     */
+    unsigned int uniqueIdentifier() const;
+
+protected:
+    std::string _name;
+private:
+    void initializeDefaultTile();
+
+    static unsigned int _numTileProviders;
+    unsigned int _uniqueIdentifier;
+    bool _initialized;
+  
+    std::unique_ptr<ghoul::opengl::Texture> _defaultTileTexture;
+    Tile _defaultTile;
 };
 
-using TileCache = LRUCache<TileIndex::TileHashKey, Tile>;
-
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::tileprovider
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___TILE_PROVIDER___H__

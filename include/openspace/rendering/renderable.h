@@ -28,23 +28,21 @@
 #include <openspace/properties/propertyowner.h>
 
 #include <openspace/properties/scalar/boolproperty.h>
-#include <openspace/util/powerscaledscalar.h>
-#include <openspace/util/updatestructures.h>
 
-#include <ghoul/opengl/programobject.h>
-
-#include <openspace/documentation/documentation.h>
-
-
-// Forward declare to minimize dependencies
-namespace ghoul {
-    namespace opengl {
-        class Texture;
-    }
-    class Dictionary;
+namespace ghoul { class Dictionary; }
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
 }
 
 namespace openspace {
+
+struct RenderData;
+struct UpdateData;
+struct RendererTasks;
+struct SurfacePositionHandle;
+
+namespace documentation { struct Documentation; } 
 
 // Forward declare to minimize dependencies
 
@@ -60,10 +58,9 @@ public:
         Overlay = 8
     };
 
-    static Renderable* createFromDictionary(const ghoul::Dictionary& dictionary);
+    static std::unique_ptr<Renderable> createFromDictionary(const ghoul::Dictionary& dictionary);
 
     // constructors & destructor
-    Renderable();
     Renderable(const ghoul::Dictionary& dictionary);
     virtual ~Renderable();
 
@@ -73,12 +70,13 @@ public:
     virtual bool isReady() const = 0;
     bool isEnabled() const;
 
-    void setBoundingSphere(PowerScaledScalar boundingSphere);
-    PowerScaledScalar getBoundingSphere();
+    void setBoundingSphere(float boundingSphere);
+    float boundingSphere() const;
 
-    virtual void render(const RenderData& data);
     virtual void render(const RenderData& data, RendererTasks& rendererTask);
     virtual void update(const UpdateData& data);
+    virtual SurfacePositionHandle calculateSurfacePositionHandle(
+                                                      const glm::dvec3& targetModelSpace);
 
     RenderBin renderBin() const;
     void setRenderBin(RenderBin bin);
@@ -93,14 +91,14 @@ public:
 
     static void setPscUniforms(ghoul::opengl::ProgramObject& program, const Camera& camera, const PowerScaledCoordinate& position);
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 protected:
     properties::BoolProperty _enabled;
     
 private:
     RenderBin _renderBin;
-    PowerScaledScalar boundingSphere_;
+    float _boundingSphere;
     std::string _startTime;
     std::string _endTime;
     bool _hasTimeInterval;

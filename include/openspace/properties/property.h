@@ -28,13 +28,13 @@
 #include <openspace/properties/propertydelegate.h>
 
 #include <ghoul/misc/dictionary.h>
+
 #include <functional>
 #include <string>
 
 struct lua_State;
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
 class PropertyOwner;
 
@@ -63,36 +63,57 @@ class PropertyOwner;
 class Property {
 public:
     /**
-     * The visibility classes for Property%s. The classes are strictly ordered as
-     * All > Developer > User > None
-     */
+    * The visibility classes for Property%s. The classes are strictly ordered as
+    * All > Developer > User > Hidden
+    */
     enum class Visibility {
-        All = 3,  ///< Visible for all types, no matter what
+        Hidden = 3, ///< Never visible
         Developer = 2, ///< Visible in Developer mode
         User = 1, ///< Visible in User mode
-        None = 0 ///< Never visible
+        All = 0,  ///< Visible for all types, no matter what
     };
+
+    /**
+     * This structure is passed to the constructor of a Property and contains the unique
+     * identifier, a GUI name and descriptive text that are both user facing.
+     */
+    struct PropertyInfo {
+        /// The unique identifier that is part of the fully qualified URI of this Property
+        std::string identifier;
+        /// The name that is displayed in the user interface
+        std::string guiName;
+        /// The user facing description of this Property
+        std::string description;
+        /// Determins the visibility of this Property in the user interface
+        Visibility visibility = Visibility::All;
+    };
+
+    /// An OnChangeHandle is returned by the onChange method to uniquely identify an 
+    /// onChange callback
+    using OnChangeHandle = uint32_t;
+
+    /// This OnChangeHandle can be used to remove all onChange callbacks from this
+    /// Property
+    static OnChangeHandle OnChangeHandleAll;
 
     /**
      * The constructor for the property. The <code>identifier</code> needs to be unique
      * for each PropertyOwner. The <code>guiName</code> will be stored in the metaData
      * to be accessed by the GUI elements using the <code>guiName</code> key. The default
-     * visibility settings is <code>true</code>, whereas the default read-only state is
+     * visibility settings is Visibility::All, whereas the default read-only state is
      * <code>false</code>.
-     * \param identifier A unique identifier for this property. It has to be unique to the
-     * PropertyOwner and cannot contain any <code>.</code>s
-     * \param guiName The human-readable GUI name for this Property
-     * \pre \p identifier must not be empty
-     * \pre \p guiName must not be empty
+     * \param info The PropertyInfo structure that contains all the required static 
+     * information for initializing this Property.
+     * \pre \p info.identifier must not be empty
+     * \pre \p info.guiName must not be empty
      */
-    Property(std::string identifier, std::string guiName,
-        Visibility visibility = Visibility::All);
+    Property(PropertyInfo info);
 
     /**
      * The destructor taking care of deallocating all unused memory. This method will not
      * remove the Property from the PropertyOwner.
      */
-    virtual ~Property();
+    virtual ~Property() = default;
 
     /**
      * This method returns the class name of the Property. The method is used by the
@@ -191,12 +212,25 @@ public:
      * This method registers a <code>callback</code> function that will be called every
      * time if either Property:set or Property::setLuaValue was called with a value that
      * is different from the previously stored value. The callback can be removed by
-     * passing an empty <code>std::function<void()></code> object.
+     * calling the removeOnChange method with the OnChangeHandle that was returned here.
      * \param callback The callback function that is called when the encapsulated type has
      * been successfully changed by either the Property::set or Property::setLuaValue
      * methods.
+     * \pre The callback must not be empty
+     * \return An OnChangeHandle that can be used in subsequent calls to remove a callback
      */
-    virtual void onChange(std::function<void()> callback);
+    OnChangeHandle onChange(std::function<void()> callback);
+
+    /**
+     * This method deregisters a callback that was previously registered with the onChange
+     * method. If OnChangeHandleAll is passed to this function, all registered callbacks
+     * are removed.
+     * \param handle An OnChangeHandle that was returned from a previous call to onChange
+     * by this property or OnChangeHandleAll if all callbacks should be removed.
+     * \pre handle must refer to a callback that has been previously registred
+     * \pre handle must refer to a callback that has not been removed previously
+     */
+    void removeOnChange(OnChangeHandle handle);
 
     /**
      * This method returns the unique identifier of this Property.
@@ -237,18 +271,12 @@ public:
     std::string guiName() const;
 
     /**
-     * Returns the description for this Property that contains all necessary information
-     * required for creating a GUI representation. The format of the description is a
-     * valid Lua table, i.e., it is surrounded by a pair of <code>{</code> and
-     * <code>}</code> with key,value pairs between. Each value can either be a number, a
-     * string, a bool, or another table. The general values set by this base function
-     * are: <code>Identifier</code>, <code>Name</code>, <code>Type</code>. All other
-     * values are specific to the type and are added in a specific subclass, which require
-     * the subclass to call this method first.
-     * \return The descriptive text for the Property that can be used for constructing a
-     * GUI representation
+     * This function returns a user-facing description of the Property which can be
+     * displayed in the user interface to inform the user what this Property does and how
+     * it affects the rendering.
+     * \return The description of this Property
      */
-    virtual std::string description() const;
+    std::string description() const;
 
     /**
      * Sets the identifier of the group that this Property belongs to. Property groups can
@@ -293,6 +321,18 @@ public:
     void setReadOnly(bool state);
 
     /**
+    * Default view options that can be used in the Property::setViewOption method. The
+    * values are: Property::ViewOptions::Color = <code>color</code>,
+    * Property::ViewOptions::LightPosition = <code>lightPosition</code>,
+    * Property::ViewOptions::PowerScaledScalar = <code>powerScaledScalar</code>, and
+    * Property::ViewOptions::PowerScaledCoordinate = <code>powerScaledCoordinate</code>.
+    */
+    struct ViewOptions {
+        static const char* Color;
+        static const char* LightPosition;
+    };
+
+    /**
      * This method allows the developer to give hints to the GUI about different
      * representations for the GUI. The same Property (for example Vec4Property) can be
      * used in different ways, each requiring a different input method. These values are
@@ -307,18 +347,14 @@ public:
     void setViewOption(std::string option, bool value = true);
 
     /**
-     * Default view options that can be used in the Property::setViewOption method. The
-     * values are: Property::ViewOptions::Color = <code>color</code>,
-     * Property::ViewOptions::LightPosition = <code>lightPosition</code>,
-     * Property::ViewOptions::PowerScaledScalar = <code>powerScaledScalar</code>, and
-     * Property::ViewOptions::PowerScaledCoordinate = <code>powerScaledCoordinate</code>.
+     * This method returns the state of a \p option hint. See Property::ViewOptions for a
+     * default list of possible options. As these are only hints, the GUI is free to
+     * ignore any suggestion by the developer.
+     * \param option The view option that should be retrieved
+     * \param defaultValue The value that is returned if the \p option was not set
+     * \return The view option's value
      */
-    struct ViewOptions {
-        static const std::string Color;
-        static const std::string LightPosition;
-        static const std::string PowerScaledScalar;
-        static const std::string PowerScaledCoordinate;
-    };
+    bool viewOption(const std::string& option, bool defaultValue = false) const;
 
     /**
      * Returns the metaData that contains all information for external applications to
@@ -329,10 +365,10 @@ public:
     const ghoul::Dictionary& metaData() const;
 
 protected:
-    static const std::string IdentifierKey;
-    static const std::string NameKey;
-    static const std::string TypeKey;
-    static const std::string MetaDataKey;
+    static const char* IdentifierKey;
+    static const char* NameKey;
+    static const char* TypeKey;
+    static const char* MetaDataKey;
 
     /**
      * Creates the information that is general to every Property and adds the
@@ -378,14 +414,29 @@ protected:
     /// The identifier for this Property
     std::string _identifier;
 
+    /// The GUI user-facing name of this Property
+    std::string _guiName;
+
+    /// The user-facing description of this Property
+    std::string _description;
+
     /// The Dictionary containing all meta data necessary for external applications
     ghoul::Dictionary _metaData;
 
-    /// The callback function that will be invoked whenever the encapsulated value changes
-    std::function<void()> _onChangeCallback;
+    /// The callback function sthat will be invoked whenever the value changes
+    std::vector<std::pair<OnChangeHandle, std::function<void()>>> _onChangeCallbacks;
+
+private:
+    OnChangeHandle _currentHandleValue;
+
+#ifdef _DEBUG
+    // These identifiers can be used for debugging. Each Property is assigned one unique
+    // identifier.
+    static uint64_t Identifier;
+    uint64_t _id;
+#endif
 };
 
-} // namespace properties
-} // namespace openspace
+} // namespace openspace::properties
 
 #endif // __OPENSPACE_CORE___PROPERTY___H__

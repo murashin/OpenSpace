@@ -27,43 +27,49 @@
 
 #include <openspace/properties/propertyowner.h>
 
-#include <openspace/documentation/documentation.h>
-#include <modules/base/rendering/renderablemodel.h>
-#include <ghoul/misc/dictionary.h>
+#include <ghoul/opengl/ghoul_gl.h>
 
-namespace openspace {
+#include <memory>
 
-namespace modelgeometry {
+namespace ghoul { class Dictionary; }
+namespace ghoul::opengl { class ProgramObject; }
+
+namespace openspace { class Renderable; }
+namespace openspace::documentation { struct Documentation; }
+
+namespace openspace::modelgeometry {
 
 class ModelGeometry : public properties::PropertyOwner {
 public:
-    static ModelGeometry* createFromDictionary(const ghoul::Dictionary& dictionary);
-
     struct Vertex {
         GLfloat location[4];
         GLfloat tex[2];
         GLfloat normal[3];
     };
 
+    static std::unique_ptr<ModelGeometry> createFromDictionary(
+        const ghoul::Dictionary& dictionary
+    );
+
     ModelGeometry(const ghoul::Dictionary& dictionary);
-    virtual ~ModelGeometry();
+    virtual ~ModelGeometry() = default;
+    
     virtual bool initialize(Renderable* parent);
     virtual void deinitialize();
     void render();
+    
     virtual bool loadModel(const std::string& filename) = 0;
     void changeRenderMode(const GLenum mode);
-    bool getVertices(std::vector<Vertex>* vertexList);
-    bool getIndices(std::vector<int>* indexList);
+    //bool getVertices(std::vector<Vertex>* vertexList);
+    //bool getIndices(std::vector<int>* indexList);
 
     double boundingRadius() const;
 
     virtual void setUniforms(ghoul::opengl::ProgramObject& program);
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 protected:
-    Renderable* _parent;
-
     bool loadObj(const std::string& filename);
     bool loadCachedFile(const std::string& filename);
     bool saveCachedFile(const std::string& filename);
@@ -78,7 +84,6 @@ protected:
     std::string _file;
 };
 
-}  // namespace modelgeometry
-}  // namespace openspace
+}  // namespace openspace::modelgeometry
 
 #endif // __OPENSPACE_MODULE_BASE___MODELGEOMETRY___H__

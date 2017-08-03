@@ -38,7 +38,7 @@
 #include <numeric>
 
 namespace {
-    const std::string _loggerCat = "GuiPerformanceComponent";
+    const char* _loggerCat = "GuiPerformanceComponent";
 
     enum class Sorting {
         NoSorting = -1,
@@ -49,21 +49,49 @@ namespace {
         Render = 4,
         Total = 5
     };
-}
 
-namespace openspace {
-namespace gui {
+    static const openspace::properties::Property::PropertyInfo SortingSelectionInfo = {
+        "SortingSelection",
+        "Sorting",
+        "This value determines the sorting order of the performance measurements."
+    };
+
+    static const openspace::properties::Property::PropertyInfo SceneGraphEnabledInfo = {
+        "ShowSceneGraph",
+        "Show Scene Graph Measurements",
+        "If this value is enabled, the window showing the measurements for the scene "
+        "graph values is visible."
+    };
+
+    static const openspace::properties::Property::PropertyInfo FunctionsEnabledInfo = {
+        "ShowFunctions",
+        "Show Function Measurements",
+        "If this value is enabled, the window showing the measurements for the "
+        "individual functions is visible."
+    };
+
+    static const openspace::properties::Property::PropertyInfo OutputLogsInfo = {
+        "OutputLogs",
+        "Output Logs",
+        "" // @TODO Missing documentation
+    };
+
+} // namespace
+
+namespace openspace::gui {
 
 GuiPerformanceComponent::GuiPerformanceComponent()
     : GuiComponent("PerformanceComponent")
-    , _sortingSelection("sortingSelection", "Sorting", -1, -1, 6)
-    , _sceneGraphIsEnabled("showSceneGraph", "Show Scene Graph Measurements", false)
-    , _functionsIsEnabled("showFunctions", "Show Function Measurements", false)
+    , _sortingSelection(SortingSelectionInfo, -1, -1, 6)
+    , _sceneGraphIsEnabled(SceneGraphEnabledInfo, false)
+    , _functionsIsEnabled(FunctionsEnabledInfo, false)
+    , _outputLogs(OutputLogsInfo, false)
 {
     addProperty(_sortingSelection);
 
     addProperty(_sceneGraphIsEnabled);
     addProperty(_functionsIsEnabled);
+    addProperty(_outputLogs);
 }
 
 void GuiPerformanceComponent::render() {
@@ -81,17 +109,23 @@ void GuiPerformanceComponent::render() {
     v = _functionsIsEnabled;
     ImGui::Checkbox("Functions", &v);
     _functionsIsEnabled = v;
-        
+    v = _outputLogs;
+    ImGui::Checkbox("Output Logs", &v);
+    OsEng.renderEngine().performanceManager()->setLogging(v);
+    // Need to catch if it's unsuccessful
+    v = OsEng.renderEngine().performanceManager()->loggingEnabled();
+    _outputLogs = v;
+
     ImGui::Spacing();
-        
+
     if (ImGui::Button("Reset measurements")) {
         OsEng.renderEngine().performanceManager()->resetPerformanceMeasurements();
     }
-        
+
     if (_sceneGraphIsEnabled) {
-        bool v = _sceneGraphIsEnabled;
-        ImGui::Begin("SceneGraph", &v);
-        _sceneGraphIsEnabled = v;
+        bool sge = _sceneGraphIsEnabled;
+        ImGui::Begin("SceneGraph", &sge);
+        _sceneGraphIsEnabled = sge;
         
         // The indices correspond to the index into the average array further below
         ImGui::Text("Sorting");
@@ -399,9 +433,9 @@ void GuiPerformanceComponent::render() {
     }
         
     if (_functionsIsEnabled) {
-        bool v = _functionsIsEnabled;
-        ImGui::Begin("Functions", &v);
-        _functionsIsEnabled = v;
+        bool fe = _functionsIsEnabled;
+        ImGui::Begin("Functions", &fe);
+        _functionsIsEnabled = fe;
         using namespace performance;
             
         for (int i = 0; i < layout->nFunctionEntries; ++i) {
@@ -421,9 +455,6 @@ void GuiPerformanceComponent::render() {
                 std::begin(layout->functionEntries[i].time),
                 std::end(layout->functionEntries[i].time)
             );
-                
-            const PerformanceLayout::FunctionPerformanceLayout& f =
-                layout->functionEntries[i];
                 
             std::string renderTime = std::to_string(
                 entry.time[PerformanceLayout::NumberValues - 1]
@@ -445,5 +476,4 @@ void GuiPerformanceComponent::render() {
     ImGui::End();
 }
 
-} // namespace gui
-} // namespace openspace
+} // namespace openspace::gui

@@ -25,7 +25,12 @@
 set(APPLICATION_NAME Launcher)
 set(APPLICATION_LINK_TO_OPENSPACE ON)
 
-include (${GHOUL_BASE_DIR}/support/cmake/handle_external_library.cmake)
+if (WIN32)
+    set(RESOURCE_FILE ${OPENSPACE_APPS_DIR}/Launcher/openspace.rc)
+endif ()
+
+include(${GHOUL_BASE_DIR}/support/cmake/handle_external_library.cmake)
+include(${OPENSPACE_CMAKE_EXT_DIR}/support_macros.cmake)
 
 set(application_path ${OPENSPACE_APPS_DIR}/Launcher)
 
@@ -57,20 +62,23 @@ add_executable(${APPLICATION_NAME} MACOSX_BUNDLE
     ${SOURCE_FILES}
     ${HEADER_FILES}
     ${MOC_FILES}
+    ${RESOURCE_FILE}
     ${RESOURCE_FILES}
 )
+
+set_compile_settings(${APPLICATION_NAME})
 
 target_link_libraries(${APPLICATION_NAME}
     Qt5::Widgets
     Qt5::Network
 )
 
-if (APPLE)
-    INSTALL(CODE "
-       include(BundleUtilities)
-       fixup_bundle(\"/Users/alex/Development/OpenSpace/bin/openspace/Debug/Launcher.app/Contents/MacOS/Launcher\"   \"/Users/alex/Development/OpenSpace/bin/openspace/Debug/TimelineView.app/Contents/plugins/platforms/libqcocoa.dylib\"   \"\")
-       " COMPONENT Runtime)
-endif ()
+#if (APPLE)
+#    INSTALL(CODE "
+#       include(BundleUtilities)
+#       fixup_bundle(\"${application_path}/bin/openspace/Debug/Launcher.app/Contents/MacOS/Launcher\"   \"${application_path}/bin/openspace/Debug/TimelineView.app/Contents/plugins/platforms/libqcocoa.dylib\"   \"\")
+#       " COMPONENT Runtime)
+#endif ()
 
 # Libtorrent
 include_external_library(${APPLICATION_NAME} libtorrent ${application_path}/ext/libtorrent)

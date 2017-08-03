@@ -23,104 +23,114 @@
  ****************************************************************************************/
 
 #include <modules/space/rendering/simplespheregeometry.h>
-#include <openspace/util/powerscaledsphere.h>
+
+#include <openspace/documentation/verifier.h>
 #include <openspace/scene/scenegraphnode.h>
+#include <openspace/rendering/renderable.h>
+#include <openspace/util/powerscaledsphere.h>
 
 namespace {
-    const std::string _loggerCat = "SimpleSphereGeometry";
+    const char* _loggerCat = "SimpleSphereGeometry";
+
+    static const openspace::properties::Property::PropertyInfo RadiusInfo = {
+        "Radius",
+        "Radius",
+        "This value specifies the radius of this sphere in meters."
+    };
+
+    static const openspace::properties::Property::PropertyInfo SegmentsInfo = {
+        "Segments",
+        "Segments",
+        "This value specifies the number of segments that this sphere is split into."
+    };
+} // namespace
+
+namespace openspace::planetgeometry {
+
+documentation::Documentation SimpleSphereGeometry::Documentation() {
+    using namespace documentation;
+    return {
+        "SimpleSphereGeometry",
+        "space_geometry_simplesphere",
+        {
+            {
+                RadiusInfo.identifier,
+                new OrVerifier(
+                    new DoubleVerifier,
+                    new DoubleVector3Verifier
+                ),
+                RadiusInfo.description,
+                Optional::No
+            },
+            {
+                SegmentsInfo.identifier,
+                new IntVerifier,
+                SegmentsInfo.description,
+                Optional::No
+            }
+        }
+    };
 }
-
-namespace openspace {
-
-namespace constants {
-namespace simplespheregeometry {
-    const char* keyRadius = "Radius";
-    const char* keySegments = "Segments";
-}  // namespace simplespheregeometry
-}
-
-namespace planetgeometry {
 
 SimpleSphereGeometry::SimpleSphereGeometry(const ghoul::Dictionary& dictionary)
     : PlanetGeometry()
-    , _realRadius("radius", "Radius", glm::vec4(1.f, 1.f, 1.f, 0.f), glm::vec4(-10.f, -10.f, -10.f, -20.f),
-                glm::vec4(10.f, 10.f, 10.f, 20.f))
-    , _segments("segments", "Segments", 20, 1, 5000)
+    , _radius(RadiusInfo, glm::vec3(1.f), glm::vec3(0.f), glm::vec3(std::pow(10.f, 20.f)))
+    , _segments(SegmentsInfo, 20, 1, 5000)
     , _sphere(nullptr)
 {
-    using constants::simplespheregeometry::keyRadius;
-    using constants::simplespheregeometry::keySegments;
+    documentation::testSpecificationAndThrow(
+        Documentation(),
+        dictionary,
+        "SimpleSphereGeometry"
+    );
 
-    // The name is passed down from the SceneGraphNode
-    bool success = dictionary.getValue(SceneGraphNode::KeyName, _name);
-    assert(success);
-    
-    glm::vec4 radius;
-    success = dictionary.getValue(keyRadius, _modRadius);
-    if (!success) {
-        LERROR("SimpleSphereGeometry of '" << _name << "' did not provide a key '"
-                                           << keyRadius << "'");
+    glm::vec3 ellipsoidRadius;
+    if (dictionary.hasKeyAndValue<double>(RadiusInfo.identifier)) {
+        const float r = static_cast<float>(
+            dictionary.value<double>(RadiusInfo.identifier)
+            );
+        _radius = { r, r, r };
     }
     else {
-        radius[0] = _modRadius[0];
-        radius[1] = _modRadius[0];
-        radius[2] = _modRadius[0];
-        radius[3] = _modRadius[1];
-        _realRadius = radius; // In case the kernels does not supply a real
+        _radius = dictionary.value<glm::vec3>(RadiusInfo.identifier);
     }
 
-    double segments;
-    success = dictionary.getValue(keySegments, segments);
-    if (!success) {
-        LERROR("SimpleSphereGeometry of '" << _name << "' did not provide a key '"
-                                           << keySegments << "'");
-    }
-    else
-        _segments = static_cast<int>(segments);
+    _segments = static_cast<int>(dictionary.value<double>(SegmentsInfo.identifier));
+
     // The shader need the radii values but they are not changeable runtime
     // TODO: Possibly add a scaling property @AA
-    addProperty(_realRadius);
     // Changing the radius/scaling should affect the shader but not the geometry? @AA
-    //_radius.onChange(std::bind(&SimpleSphereGeometry::createSphere, this));
+    _radius.onChange([&]() { createSphere(); });
+    addProperty(_radius);
+
+    _segments.onChange([&]() { createSphere(); });
     addProperty(_segments);
-    _segments.onChange(std::bind(&SimpleSphereGeometry::createSphere, this));
 }
 
-SimpleSphereGeometry::~SimpleSphereGeometry()
-{
-}
+SimpleSphereGeometry::~SimpleSphereGeometry() {}
 
-bool SimpleSphereGeometry::initialize(Renderable* parent)
-{
+bool SimpleSphereGeometry::initialize(Renderable* parent) {
     bool success = PlanetGeometry::initialize(parent);
     createSphere();
     return success;
 }
 
-void SimpleSphereGeometry::deinitialize()
-{
-    if (_sphere)
-        delete _sphere;
+void SimpleSphereGeometry::deinitialize() {
+    delete _sphere;
     _sphere = nullptr;
 }
 
-void SimpleSphereGeometry::render()
-{
+void SimpleSphereGeometry::render() {
     _sphere->render();
 }
 
-void SimpleSphereGeometry::createSphere(){
-    //create the power scaled scalar
+void SimpleSphereGeometry::createSphere() {
+    const glm::vec3 radius = _radius.value();
+    _parent->setBoundingSphere(std::max(std::max(radius[0], radius[1]), radius[2]));
 
-    PowerScaledScalar planetSize(_modRadius);
-    _parent->setBoundingSphere(planetSize);
-
-    if(_sphere)
-        delete _sphere;
-    //_sphere = new PowerScaledSphere(planetSize, _segments);
-    _sphere = new PowerScaledSphere(_realRadius, _segments, _name);
+    delete _sphere;
+    _sphere = new PowerScaledSphere(glm::vec4(radius, 0.0), _segments);
     _sphere->initialize();
 }
 
-}  // namespace planetgeometry
-}  // namespace openspace
+}  // namespace openspace::planetgeometry

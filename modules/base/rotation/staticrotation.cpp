@@ -24,15 +24,21 @@
 
 #include <modules/base/rotation/staticrotation.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 
 namespace {
-    const char* KeyRotation = "Rotation";
-}
+    static const openspace::properties::Property::PropertyInfo RotationInfo = {
+        "Rotation",
+        "Rotation",
+        "This value is the used as a 3x3 rotation matrix that is applied to the scene "
+        "graph node that this transformation is attached to relative to its parent."
+    };
+} // namespace
 
 namespace openspace {
 
-Documentation StaticRotation::Documentation() {
+documentation::Documentation StaticRotation::Documentation() {
     using namespace openspace::documentation;
     return {
         "Static Rotation",
@@ -45,7 +51,7 @@ Documentation StaticRotation::Documentation() {
                 Optional::No
             },
             {
-                KeyRotation,
+                RotationInfo.identifier,
                 new OrVerifier(
                     new DoubleVector3Verifier(),
                     new DoubleMatrix3Verifier()
@@ -60,8 +66,11 @@ Documentation StaticRotation::Documentation() {
 }
 
 StaticRotation::StaticRotation()
-    : _rotationMatrix("rotation", "Rotation", glm::dmat3(1.0))
-{}
+    : _rotationMatrix(RotationInfo, glm::dmat3(1.0))
+{
+    addProperty(_rotationMatrix);
+    _rotationMatrix.onChange([this]() { _matrix = _rotationMatrix; });
+}
 
 StaticRotation::StaticRotation(const ghoul::Dictionary& dictionary)
     : StaticRotation()
@@ -73,18 +82,16 @@ StaticRotation::StaticRotation(const ghoul::Dictionary& dictionary)
     );
 
 
-    if (dictionary.hasKeyAndValue<glm::dvec3>(KeyRotation)) {
+    if (dictionary.hasKeyAndValue<glm::dvec3>(RotationInfo.identifier)) {
         _rotationMatrix = glm::mat3_cast(
-            glm::dquat(dictionary.value<glm::dvec3>(KeyRotation))
+            glm::dquat(dictionary.value<glm::dvec3>(RotationInfo.identifier))
         );
     }
     else {
         // Must be glm::dmat3 due to specification restriction
-        _rotationMatrix = dictionary.value<glm::dmat3>(KeyRotation);
+        _rotationMatrix = dictionary.value<glm::dmat3>(RotationInfo.identifier);
     }
 
-    addProperty(_rotationMatrix);
-    _rotationMatrix.onChange([this]() { _matrix = _rotationMatrix; });
 }
 
 } // namespace openspace

@@ -28,14 +28,15 @@
 
 #include <ghoul/misc/dictionary.h>
 
+#include <sstream>
+
 namespace {
     const char* KeyLevel = "Level";
     const char* KeyX = "X";
     const char* KeyY = "Y";
-}
+} // namespace
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 TileIndex::TileIndex(int x, int y, int level)
     : x(x), y(y), level(level)
@@ -126,7 +127,7 @@ TileIndex::TileHashKey TileIndex::hashKey() const {
     TileHashKey key = 0LL;
     key |= level;
     key |= x << 5;
-    key |= ((TileHashKey)y) << 35;
+    key |= static_cast<TileHashKey>(y) << 35;
     return key;
 }
 
@@ -147,14 +148,9 @@ std::string TileIndex::toString() const {
     return ss.str();
 }
 
-bool TileIndex::operator==(const TileIndex& other) const {
-    return x == other.x && y == other.y && level == other.level;
-}
-
 std::ostream& operator<<(std::ostream& os, const TileIndex& ci) {
     os << "{ x = " << ci.x << ", y = " << ci.y << ", level = " << ci.level << " }";
     return os;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

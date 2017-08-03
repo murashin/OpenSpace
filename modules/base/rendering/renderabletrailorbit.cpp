@@ -24,8 +24,12 @@
 
 #include <modules/base/rendering/renderabletrailorbit.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/scene/translation.h>
+#include <openspace/util/updatestructures.h>
+
+#include <ghoul/opengl/programobject.h>
 
 #include <numeric>
 
@@ -77,40 +81,44 @@
 // items in memory as was shown to be much slower than the current system.   ---abock
 
 namespace {
-    const char* KeyPeriod = "Period";
-    const char* KeyResolution = "Resolution";
-}
+    static const openspace::properties::Property::PropertyInfo PeriodInfo = {
+        "Period",
+        "Period (in days)",
+        "The objects period, i.e. the length of its orbit around the parent object given "
+        "in (Earth) days. In the case of Earth, this would be a sidereal year "
+        "(=365.242 days). If this values is specified as multiples of the period, it is "
+        "possible to show the effects of precession."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ResolutionInfo = {
+        "Resolution",
+        "Number of samples along the orbit",
+        "The number of samples along the orbit. This determines the resolution of the "
+        "trail; the tradeoff being that a higher resolution is able to resolve more "
+        "detail, but will take more resources while rendering, too. The higher, the "
+        "smoother the trail, but also more memory will be used."
+    };
+
+} // namespace
 
 namespace openspace {
 
-openspace::Documentation RenderableTrailOrbit::Documentation() {
+documentation::Documentation RenderableTrailOrbit::Documentation() {
     using namespace documentation;
-    openspace::Documentation doc{
+    documentation::Documentation doc {
         "RenderableTrailOrbit",
         "base_renderable_renderabletrailorbit",
         {
             {
-                "Type",
-                new StringEqualVerifier("RenderableTrailOrbit"),
-                "",
-                Optional::No
-            },
-            {
-                KeyPeriod,
+                PeriodInfo.identifier,
                 new DoubleVerifier,
-                "The objects period, i.e. the length of its orbit around the parent "
-                "object given in (Earth) days. In the case of Earth, this would be a "
-                "sidereal year (=365.242 days). If this values is specified as multiples "
-                "of the period, it is possible to show the effects of precession.",
+                PeriodInfo.description,
                 Optional::No
             },
             {
-                KeyResolution,
+                ResolutionInfo.identifier,
                 new IntVerifier,
-                "The number of samples along the orbit. This determines the resolution "
-                "of the trail; the tradeoff being that a higher resolution is able to "
-                "resolve more detail, but will take more resources while rendering, too. "
-                "The higher, the smoother the trail, but also more memory will be used.",
+                ResolutionInfo.description,
                 Optional::No
             }
         }
@@ -118,7 +126,7 @@ openspace::Documentation RenderableTrailOrbit::Documentation() {
 
     // Insert the parents documentation entries until we have a verifier that can deal
     // with class hierarchy
-    openspace::Documentation parentDoc = RenderableTrail::Documentation();
+    documentation::Documentation parentDoc = RenderableTrail::Documentation();
     doc.entries.insert(
         doc.entries.end(),
         parentDoc.entries.begin(),
@@ -130,10 +138,11 @@ openspace::Documentation RenderableTrailOrbit::Documentation() {
 
 RenderableTrailOrbit::RenderableTrailOrbit(const ghoul::Dictionary& dictionary)
     : RenderableTrail(dictionary)
-    , _period("period", "Period in days", 0.0, 0.0, 1e9)
-    , _resolution("resolution", "Number of Samples along Orbit", 10000, 1, 1e6)
+    , _period(PeriodInfo, 0.0, 0.0, 1e9)
+    , _resolution(ResolutionInfo, 10000, 1, 1000000)
     , _needsFullSweep(true)
     , _indexBufferDirty(true)
+    , _previousTime(0)
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
@@ -147,12 +156,12 @@ RenderableTrailOrbit::RenderableTrailOrbit(const ghoul::Dictionary& dictionary)
 
     // Period is in days
     using namespace std::chrono;
-    int factor = duration_cast<seconds>(hours(24)).count();
-    _period = dictionary.value<double>(KeyPeriod) * factor;
+    const long long sph = duration_cast<seconds>(hours(24)).count();
+    _period = dictionary.value<double>(PeriodInfo.identifier) * sph;
     _period.onChange([&] { _needsFullSweep = true; _indexBufferDirty = true; });
     addProperty(_period);
 
-    _resolution = static_cast<int>(dictionary.value<double>(KeyResolution));
+    _resolution = static_cast<int>(dictionary.value<double>(ResolutionInfo.identifier));
     _resolution.onChange([&] { _needsFullSweep = true; _indexBufferDirty = true; });
     addProperty(_resolution);
 
@@ -191,7 +200,7 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
 
     // 2
     // Write the current location into the floating position
-    glm::vec3 p = _translation->position(data.time);
+    glm::vec3 p = _translation->position(data.time.j2000Seconds());
     _vertexArray[_primaryRenderInformation.first] = { p.x, p.y, p.z };
 
     glBindVertexArray(_primaryRenderInformation._vaoID);
@@ -280,7 +289,7 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
                 // The current index
                 int i = _primaryRenderInformation.first;
                 // Number of values
-                int n = report.nUpdated + 1; // +1 for the floating position
+                int n = std::abs(report.nUpdated) + 1; // +1 for the floating position
                 // Total size of the array
                 int s = _primaryRenderInformation.count;
 
@@ -305,29 +314,27 @@ void RenderableTrailOrbit::update(const UpdateData& data) {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     glBindVertexArray(0);
+    _previousTime = data.time.j2000Seconds();
 }
 
 RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
     const UpdateData& data)
 {
-    // If we are doing a time jump, it is in general faster to recalculate everything
-    // than to only update parts of the array
-    if (data.isTimeJump) {
-        _needsFullSweep = true;
-    }
     if (_needsFullSweep) {
-        fullSweep(data.time);
+        fullSweep(data.time.j2000Seconds());
         return { true, UpdateReport::All } ;
     }
 
+
+    const double Epsilon = 1e-7;
     // When time stands still (at the iron hill), we don't need to perform any work
-    if (data.delta == 0.0) {
+    if (std::abs(data.time.j2000Seconds() - _previousTime) < Epsilon) {
         return { false, 0 };
     }
 
     double secondsPerPoint = _period / (_resolution - 1);
     // How much time has passed since the last permanent point
-    double delta = data.time - _lastPointTime;
+    double delta = data.time.j2000Seconds() - _lastPointTime;
 
     // We'd like to test for equality with 0 here, but due to rounding issues, we won't
     // get there. If this check is not here, we will trigger the positive or negative
@@ -335,25 +342,25 @@ RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
     //
     // This might become a bigger issue if we are starting to look at very short time
     // intervals
-    const double Epsilon = 1e-7;
-    if (abs(delta) < Epsilon) {
+
+    if (std::abs(delta) < Epsilon) {
         return { false, 0 };
     }
 
     if (delta > 0.0) {
         // Check whether we need to drop a new permanent point. This is only the case if
         // enough (> secondsPerPoint) time has passed since the last permanent point
-        if (abs(delta) < secondsPerPoint) {
+        if (std::abs(delta) < secondsPerPoint) {
             return { false, 0 };
         }
 
         // See how many points we need to drop
-        int nNewPoints = floor(delta / secondsPerPoint);
+        int nNewPoints = static_cast<int>(floor(delta / secondsPerPoint));
 
         // If we would need to generate more new points than there are total points in the
         // array, it is faster to regenerate the entire array
         if (nNewPoints >= _resolution) {
-            fullSweep(data.time);
+            fullSweep(data.time.j2000Seconds());
             return { true, UpdateReport::All };
         }
 
@@ -383,12 +390,12 @@ RenderableTrailOrbit::UpdateReport RenderableTrailOrbit::updateTrails(
     else {
         // See how many new points needs to be generated. Delta is negative, so we need
         // to invert the ratio
-        int nNewPoints = -(floor(delta / secondsPerPoint));
+        int nNewPoints = -(static_cast<int>(floor(delta / secondsPerPoint)));
 
         // If we would need to generate more new points than there are total points in the
         // array, it is faster to regenerate the entire array
         if (nNewPoints >= _resolution) {
-            fullSweep(data.time);
+            fullSweep(data.time.j2000Seconds());
             return { true, UpdateReport::All };
         }
 

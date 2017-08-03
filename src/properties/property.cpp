@@ -28,41 +28,50 @@
 
 #include <ghoul/lua/ghoul_lua.h>
 
-namespace openspace {
-namespace properties {
+#include <algorithm>
+
+#include <ghoul/logging/logmanager.h>
 
 namespace {
-    const std::string _loggerCat = "Property";
-    const std::string MetaDataKeyGuiName = "guiName";
-    const std::string MetaDataKeyGroup = "Group";
-    const std::string MetaDataKeyVisibility = "Visibility";
-    const std::string MetaDataKeyReadOnly = "isReadOnly";
+    const char* MetaDataKeyGroup = "Group";
+    const char* MetaDataKeyVisibility = "Visibility";
+    const char* MetaDataKeyReadOnly = "isReadOnly";
 
-    const std::string _metaDataKeyViewPrefix = "view.";
-}
+    const char* _metaDataKeyViewPrefix = "view.";
+} // namespace
 
-const std::string Property::ViewOptions::Color = "color";
-const std::string Property::ViewOptions::LightPosition = "lightPosition";
-const std::string Property::ViewOptions::PowerScaledCoordinate = "powerScaledCoordinate";
-const std::string Property::ViewOptions::PowerScaledScalar = "powerScaledScalar";
+namespace openspace::properties {
 
-const std::string Property::IdentifierKey = "Identifier";
-const std::string Property::NameKey = "Name";
-const std::string Property::TypeKey = "Type";
-const std::string Property::MetaDataKey = "MetaData";
+Property::OnChangeHandle Property::OnChangeHandleAll =
+                                               std::numeric_limits<OnChangeHandle>::max();
 
-Property::Property(std::string identifier, std::string guiName, Visibility visibility)
+const char* Property::ViewOptions::Color = "color";
+const char* Property::ViewOptions::LightPosition = "lightPosition";
+
+const char* Property::IdentifierKey = "Identifier";
+const char* Property::NameKey = "Name";
+const char* Property::TypeKey = "Type";
+const char* Property::MetaDataKey = "MetaData";
+
+#ifdef _DEBUG
+uint64_t Property::Identifier = 0;
+#endif
+
+Property::Property(PropertyInfo info)
     : _owner(nullptr)
-    , _identifier(std::move(identifier))
+    , _identifier(std::move(info.identifier))
+    , _guiName(std::move(info.guiName))
+    , _description(std::move(info.description))
+    , _currentHandleValue(0)
+#ifdef _DEBUG
+    , _id(Identifier++)
+#endif
 {
     ghoul_assert(!_identifier.empty(), "Identifier must not be empty");
-    ghoul_assert(!guiName.empty(), "guiName must not be empty");
+    ghoul_assert(!_guiName.empty(), "guiName must not be empty");
 
-    setVisibility(visibility);
-    _metaData.setValue(MetaDataKeyGuiName, std::move(guiName));
+    setVisibility(info.visibility);
 }
-
-Property::~Property() {}
 
 const std::string& Property::identifier() const {
     return _identifier;
@@ -85,13 +94,13 @@ ghoul::any Property::get() const {
     return ghoul::any();
 }
 
-bool Property::getLuaValue(lua_State* state) const {
+bool Property::getLuaValue(lua_State*) const {
     return false;
 }
 
-void Property::set(ghoul::any value) {}
+void Property::set(ghoul::any) {}
 
-bool Property::setLuaValue(lua_State* state) {
+bool Property::setLuaValue(lua_State*) {
     return false;
 }
 
@@ -103,22 +112,20 @@ int Property::typeLua() const {
     return LUA_TNIL;
 }
 
-bool Property::getStringValue(std::string& value) const {
+bool Property::getStringValue(std::string&) const {
     return false;
 }
 
-bool Property::setStringValue(std::string value) {
+bool Property::setStringValue(std::string) {
     return false;
 }
 
 std::string Property::guiName() const {
-    std::string result;
-    _metaData.getValue(MetaDataKeyGuiName, result);
-    return result;
+    return _guiName;
 }
 
 std::string Property::description() const {
-    return "return {" + generateBaseDescription() + "}";
+    return _description;
 }
 
 void Property::setGroupIdentifier(std::string groupId) {
@@ -139,10 +146,9 @@ void Property::setVisibility(Visibility visibility) {
 }
 
 Property::Visibility Property::visibility() const {
-    return
-        static_cast<Visibility>(
-            _metaData.value<std::underlying_type_t<Visibility>>(MetaDataKeyVisibility)
-        );
+    return static_cast<Visibility>(
+        _metaData.value<std::underlying_type_t<Visibility>>(MetaDataKeyVisibility)
+    );
 }
 
 void Property::setReadOnly(bool state) {
@@ -157,12 +163,43 @@ void Property::setViewOption(std::string option, bool value) {
     );
 }
 
+bool Property::viewOption(const std::string& option, bool defaultValue) const {
+    bool v = defaultValue;
+    _metaData.getValue(_metaDataKeyViewPrefix + option, v);
+    return v;
+}
+
 const ghoul::Dictionary& Property::metaData() const {
     return _metaData;
 }
 
-void Property::onChange(std::function<void()> callback) {
-    _onChangeCallback = std::move(callback);
+Property::OnChangeHandle Property::onChange(std::function<void()> callback) {
+    ghoul_assert(callback, "The callback must not be empty");
+    OnChangeHandle handle = _currentHandleValue++;
+    _onChangeCallbacks.emplace_back(handle, std::move(callback));
+    return handle;
+}
+
+void Property::removeOnChange(OnChangeHandle handle) {
+    if (handle == OnChangeHandleAll) {
+        _onChangeCallbacks.clear();
+    }
+    else {
+        auto it = std::find_if(
+            _onChangeCallbacks.begin(),
+            _onChangeCallbacks.end(),
+            [handle](const std::pair<OnChangeHandle, std::function<void()>>& p) {
+                return p.first == handle;
+            }
+        );
+
+        ghoul_assert(
+            it != _onChangeCallbacks.end(),
+            "handle must be a valid callback handle"
+        );
+
+        _onChangeCallbacks.erase(it);
+    }
 }
 
 PropertyOwner* Property::owner() const {
@@ -174,14 +211,16 @@ void Property::setPropertyOwner(PropertyOwner* owner) {
 }
 
 void Property::notifyListener() {
-    if (_onChangeCallback) {
-        _onChangeCallback();
+    for (const std::pair<OnChangeHandle, std::function<void()>>& p : _onChangeCallbacks) {
+        p.second();
     }
 }
 
+// This was used in the old version of Property::Description but was never used. Is this
+// still useful? ---abock
 std::string Property::generateBaseDescription() const {
     return
-        TypeKey + " = \"" + className() + "\", " +
+        std::string(TypeKey) + " = \"" + className() + "\", " +
         IdentifierKey + " = \"" + fullyQualifiedIdentifier() + "\", " +
         NameKey + " = \"" + guiName() + "\", " +
         generateMetaDataDescription() + ", " + 
@@ -193,7 +232,7 @@ std::string Property::generateMetaDataDescription() const {
         { Visibility::All, "All" },
         { Visibility::Developer, "Developer" },
         { Visibility::User, "User" },
-        { Visibility::None, "None" }
+        { Visibility::Hidden, "Hidden" }
     };
     Visibility visibility = _metaData.value<Visibility>(MetaDataKeyVisibility);
     bool isReadOnly = _metaData.value<bool>(MetaDataKeyReadOnly);
@@ -201,7 +240,7 @@ std::string Property::generateMetaDataDescription() const {
     std::string vis = VisibilityConverter.at(visibility);
 
     return
-        MetaDataKey + " = {" +
+        std::string(MetaDataKey) + " = {" +
         MetaDataKeyGroup +   " = '" + groupIdentifier() + "'," +
         MetaDataKeyVisibility + " = " + vis + "," +
         MetaDataKeyReadOnly +" = " + (isReadOnly ? "true" : "false") + "}";
@@ -211,5 +250,4 @@ std::string Property::generateAdditionalDescription() const {
     return "";
 }
 
-} // namespace properties
-} // namespace openspace
+} // namespace openspace::properties

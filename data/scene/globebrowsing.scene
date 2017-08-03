@@ -6,9 +6,12 @@ function preInitialization()
     critical objects.
     ]]--
 
-    --openspace.time.setTime(openspace.time.currentWallTime())
-    openspace.spice.loadKernel("${SPICE}/naif0011.tls")
+    openspace.spice.loadKernel("${SPICE}/naif0012.tls")
     openspace.spice.loadKernel("${SPICE}/pck00010.tpc")
+
+    -- For unit test
+    --openspace.time.setTime("2016 SEP 8 23:00:00.500")
+    --openspace.time.togglePause()
 
     openspace.time.setTime(openspace.time.currentWallTime())
     dofile(openspace.absPath('${SCRIPTS}/bind_common_keys.lua'))
@@ -16,68 +19,55 @@ function preInitialization()
 
     -- Toggle night texture, shading, atmosphere and water
     openspace.bindKey("s",
-        helper.property.invert('Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.enabled') ..
-        helper.property.invert('Earth.RenderableGlobe.performShading') ..
-        helper.property.invert('Earth.RenderableGlobe.atmosphere') ..
-        helper.property.invert('Earth.RenderableGlobe.Layers.WaterMasks.MODIS_Water_Mask.enabled'),
+        helper.property.invert('Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.Enabled') ..
+        helper.property.invert('Earth.RenderableGlobe.PerformShading') ..
+        helper.property.invert('Earth.RenderableGlobe.Atmosphere') ..
+        helper.property.invert('Earth.RenderableGlobe.Layers.WaterMasks.MODIS_Water_Mask.Enabled'),
         "Toggle night texture, shading, atmosphere, and water for Earth."
     )
 
     -- Toggle background
     openspace.bindKey("b",
-        helper.property.invert('MilkyWay.renderable.enabled') ..
-        helper.property.invert('Stars.renderable.enabled'),
+        helper.property.invert('MilkyWay.renderable.Enabled') ..
+        helper.property.invert('Stars.renderable.Enabled'),
         "Toggle background (Stars and Milkyway)."
     )
 
     openspace.bindKey("g",
         "openspace.setInteractionMode('GlobeBrowsing')" ..
-        helper.property.invert('MilkyWay.renderable.enabled') ..
-        helper.property.invert('Stars.renderable.enabled') ..
-        helper.property.invert('Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.enabled') ..
-        helper.property.invert('Earth.RenderableGlobe.performShading') ..
-        helper.property.invert('Mars.RenderableGlobe.performShading') ..
-        helper.property.invert('Earth.RenderableGlobe.atmosphere') ..
-        helper.property.invert('Earth.RenderableGlobe.Layers.WaterMasks.MODIS_Water_Mask.enabled') ..
-        helper.property.invert('Moon.RenderableGlobe.enabled') ..
-        helper.property.invert('Sun.renderable.enabled'),
+        helper.property.invert('MilkyWay.renderable.Enabled') ..
+        helper.property.invert('Stars.renderable.Enabled') ..
+        helper.property.invert('Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.Enabled') ..
+        helper.property.invert('Earth.RenderableGlobe.PerformShading') ..
+        helper.property.invert('Mars.RenderableGlobe.PerformShading') ..
+        helper.property.invert('Earth.RenderableGlobe.Atmosphere') ..
+        helper.property.invert('Earth.RenderableGlobe.Layers.WaterMasks.MODIS_Water_Mask.Enabled') ..
+        helper.property.invert('Moon.RenderableGlobe.Enabled') ..
+        helper.property.invert('Sun.renderable.Enabled'),
         "Toogles background and shading mode on the Earth and Mars alongside visibility of the Moon and the Sun"
     )
 
     openspace.bindKey("h",
-        "openspace.setPropertyValue('*Trail.renderable.enabled', false)",
+        "openspace.setPropertyValue('*Trail.renderable.Enabled', false)",
         "Disables visibility of the trails"
     )
-
-    --[[
-    -- Toggle trails
-    openspace.bindKey("o",
-        'openspace.setPropertyValue("*Trail.renderable.enabled", false)'
-    )
-    openspace.bindKey("p",
-        'openspace.setPropertyValue("*Trail.renderable.enabled", true)'
-    )
-    
-]]
 end
 
 function postInitialization()
     openspace.printInfo("Setting default values")
 
-    openspace.setInteractionMode('GlobeBrowsing')
+    openspace.setPropertyValue("MilkyWay.renderable.Transparency", 0.55)
+    openspace.setPropertyValue("MilkyWay.renderable.Segments", 50)
 
-    openspace.setPropertyValue("MilkyWay.renderable.transparency", 0.55)
-    openspace.setPropertyValue("MilkyWay.renderable.segments", 50)
-
-    openspace.setPropertyValue("Sun.renderable.enabled", true)
-    openspace.setPropertyValue("SunGlare.renderable.enabled", false)
-    openspace.setPropertyValue("SunMarker.renderable.enabled", false)
+    openspace.setPropertyValue("Sun.renderable.Enabled", true)
+    openspace.setPropertyValue("SunGlare.renderable.Enabled", false)
+    openspace.setPropertyValue("SunMarker.renderable.Enabled", false)
     
-    openspace.setPropertyValue("Earth.RenderableGlobe.atmosphere", true)
-    openspace.setPropertyValue("Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.settings.gamma", 1.8)
-    openspace.setPropertyValue("Earth.RenderableGlobe.Layers.NightLayers.Earth at Night 2012.settings.multiplier", 10)
+    openspace.setPropertyValue("Earth.RenderableGlobe.Atmosphere", true)
+    openspace.setPropertyValue("Earth.RenderableGlobe.Debug.LevelByProjectedAreaElseDistance", false)
+    openspace.setPropertyValue("Earth.RenderableGlobe.Layers.ColorLayers.BlendTileLevels", true)
 
-    openspace.resetCameraDirection()
+    openspace.globebrowsing.goToGeo(0, 0, 20000000)
 
     openspace.printInfo("Done setting default values")
 end
@@ -88,8 +78,8 @@ return {
     CommonFolder = "common",
     Camera = {
         Focus = "Earth",
-        Position = {138530625167.228241, 42217005217.825005, -46336405755.934372},
-        Rotation = {0.633883, 0.492158, -0.123913, -0.583625},
+        Position = {0, 0, 0},
+        Rotation = {0.758797, 0.221490, -0.605693, -0.091135},
     },
 
     Modules = {
@@ -97,6 +87,7 @@ return {
         "sun",
         "stars",
         "milkyway",
+        -- "satellites"
     }
 }
 

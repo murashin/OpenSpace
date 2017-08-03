@@ -24,14 +24,20 @@
 
 #include <modules/onscreengui/include/guicomponent.h>
 
-namespace openspace {
-namespace gui {
+namespace {
+    static const openspace::properties::Property::PropertyInfo EnabledInfo = {
+        "Enabled",
+        "Is Enabled",
+        "This setting determines whether this object will be visible or not."
+    };
+} // namespace
+
+namespace openspace::gui {
 
 GuiComponent::GuiComponent(std::string name)
-    : _isEnabled("enabled", "Is Enabled", false)
+    : properties::PropertyOwner(std::move(name))
+    , _isEnabled(EnabledInfo, false)
 {
-    setName(std::move(name));
-
     addProperty(_isEnabled);
 }
 
@@ -51,5 +57,4 @@ void GuiComponent::deinitialize() {}
 
 void GuiComponent::deinitializeGL() {}
 
-} // namespace gui
-} // namespace openspace
+} // namespace openspace::gui

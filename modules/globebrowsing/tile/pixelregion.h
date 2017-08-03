@@ -27,8 +27,7 @@
 
 #include <ghoul/glm.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 struct PixelRegion {
     using PixelCoordinate = glm::ivec2;
@@ -73,8 +72,8 @@ struct PixelRegion {
         
     void scale(const glm::dvec2& s);
     void scale(double s);
-    void downscalePow2(int exponent, PixelCoordinate wrt = {0,0});
-    void upscalePow2(int exponent, PixelCoordinate wrt = { 0,0 });
+    void downscalePow2(int exponent, PixelCoordinate wrt = { 0, 0 });
+    void upscalePow2(int exponent, PixelCoordinate wrt = { 0, 0 });
 
     void move(Side side, int amount);
     void pad(const PixelRegion& padding);
@@ -100,7 +99,6 @@ struct PixelRegion {
     PixelRange numPixels;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___PIXELREGION___H__

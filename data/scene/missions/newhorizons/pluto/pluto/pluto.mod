@@ -1,7 +1,9 @@
+local pluto_radius = 1.173E6
+
 if UseAccurateNewHorizonsKernels then
     NewHorizonsKernels = {
-        "${SPICE}/nh_kernels/spk/NavPE_de433_od122.bsp",
-        "${SPICE}/nh_kernels/spk/NavSE_plu047_od122.bsp"
+        "${SPICE}/nh_20170126/spk/NavPE_de433_od122.bsp",
+        "${SPICE}/nh_20170126/spk/NavSE_plu047_od122.bsp"
     }
 else
     NewHorizonsKernels = {
@@ -9,12 +11,12 @@ else
     }
 end
 
-Files = {
+local Files = {
     low = "textures/pluto_large.jpg",
     med = "textures/Shenk_180.jpg",
     high = "textures/pmap_cyl_HR_LOR_lowres.jpg"
 }
-ColorTexture = Files[TextureResolution]
+local ColorTexture = Files[TextureResolution]
 
 return {
     -- Pluto barycenter module
@@ -30,15 +32,16 @@ return {
             },
         },
     },
-    -- PlutoProjection module
+    -- Pluto module
     {   
-        Name = "PlutoProjection",
+        Name = "Pluto",
         Parent = "PlutoBarycenter",
         Renderable = {
             Type = "RenderablePlanetProjection",
+            Radius = pluto_radius,
             Geometry = {
                 Type = "SimpleSphere",
-                Radius = { 1.173 , 6 },
+                Radius = pluto_radius,
                 Segments = 100
             },
             Textures = {
@@ -173,7 +176,7 @@ return {
        Renderable = {
            Type = "RenderablePlane",
            Billboard = true,
-           Size = { 5, 4 },
+           Size = 5E4,
            Texture = "textures/barycenter.png",
            Atmosphere = {
                Type = "Nishita", -- for example, values missing etc etc
@@ -184,10 +187,10 @@ return {
     },
     {
         Name = "PlutoText",
-        Parent = "PlutoProjection",
+        Parent = "Pluto",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 6.3},
+            Size = 10^6.3,
             Origin = "Center",
             Billboard = true,
             Texture = "textures/Pluto-Text.png",
@@ -202,10 +205,10 @@ return {
     },
     {
         Name = "PlutoTexture",
-        Parent = "PlutoProjection",
+        Parent = "Pluto",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 6.4},
+            Size = 10.0^6.4,
             Origin = "Center",
             Billboard = true,
             ProjectionListener = false,
@@ -220,7 +223,7 @@ return {
     },
     {
         Name = "PlutoShadow",
-        Parent = "PlutoProjection",
+        Parent = "Pluto",
         Renderable = {
             Type = "RenderableShadowCylinder",
             TerminatorType = "PENUMBRAL", 

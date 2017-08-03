@@ -27,23 +27,21 @@
 
 #include <openspace/rendering/renderable.h>
 
-#include <openspace/documentation/documentation.h>
 #include <openspace/properties/stringproperty.h>
 #include <openspace/properties/optionproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
 
-namespace ghoul {
-namespace filesystem {
-class File;
-}
-}
+#include <ghoul/opengl/ghoul_gl.h>
+
+namespace ghoul::filesystem { class File; }
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
+} // namespace ghoul::opengl
 
 namespace openspace {
 
-namespace opengl {
-class ProgramObject;
-class Texture;
-}
+namespace documentation { struct Documentation; }
 
 class RenderableStars : public Renderable {
 public:
@@ -55,10 +53,10 @@ public:
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 private:
     enum ColorOption {

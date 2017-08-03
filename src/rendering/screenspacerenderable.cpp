@@ -24,35 +24,94 @@
 
 #include <openspace/rendering/screenspacerenderable.h>
 
+#include <openspace/documentation/documentation.h>
+#include <openspace/documentation/verifier.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/engine/wrapper/windowwrapper.h>
 #include <openspace/rendering/renderengine.h>
+#include <openspace/scripting/scriptengine.h>
 #include <openspace/util/camera.h>
 #include <openspace/util/factorymanager.h>
 
-#include <openspace/documentation/verifier.h>
-
- #ifdef WIN32
- #define _USE_MATH_DEFINES
- #include <math.h>
- #endif
-
 namespace {
-    const std::string _loggerCat = "ScreenSpaceRenderable";
+    const char* _loggerCat = "ScreenSpaceRenderable";
 
-    const std::string KeyType = "Type";
-    const std::string KeyFlatScreen = "FlatScreen";
-    const std::string KeyPosition = "Position";
-    const std::string KeyScale = "Scale";
-    const std::string KeyDepth = "Depth";
-    const std::string KeyAlpha = "Alpha";
-
+    const char* KeyType = "Type";
+    const char* KeyFlatScreen = "FlatScreen";
+    const char* KeyPosition = "Position";
+    const char* KeyScale = "Scale";
+    const char* KeyDepth = "Depth";
+    const char* KeyAlpha = "Alpha";
+    const char* KeyTag = "Tag";
     const float PlaneDepth = -2.f;
-}
+
+    static const openspace::properties::Property::PropertyInfo EnabledInfo = {
+        "Enabled",
+        "Is Enabled",
+        "This setting determines whether this sceen space plane will be visible or not."
+    };
+
+    static const openspace::properties::Property::PropertyInfo FlatScreenInfo = {
+        "FlatScreen",
+        "Flat Screen specification",
+        "This value determines whether the location of this screen space plane will be "
+        "specified in a two-dimensional Euclidean plane (if this is set to 'true') or "
+        "specified in spherical coordinates. By switching this value, the correct "
+        "property will be shown or hidden. The Euclidean coordinate system is useful if "
+        "a regular rendering is applied, whereas the spherical coordinates are most "
+        "useful in a planetarium environment."
+    };
+
+    static const openspace::properties::Property::PropertyInfo EuclideanPositionInfo = {
+        "EuclideanPosition",
+        "Euclidean coordinates",
+        "This value determines the position of this screen space plane in Euclidean "
+        "two-dimensional coordinates."
+    };
+
+    static const openspace::properties::Property::PropertyInfo SphericalPositionInfo = {
+        "SphericalPosition",
+        "Spherical coordinates",
+        "This value determines the position of this screen space plane in a spherical "
+        "coordinate system."
+    };
+
+    static const openspace::properties::Property::PropertyInfo DepthInfo = {
+        "Depth",
+        "Depth value",
+        "This value determines the depth of the plane. This value does not change the "
+        "apparent size of the plane, but is only used to sort the planes correctly. The "
+        "plane with a lower value will be shown in front of a plane with a higher depth "
+        "value."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ScaleInfo = {
+        "Scale",
+        "Scale value",
+        "This value determines a scale factor for the plane. The default size of a plane "
+        "is determined by the concrete instance and reflects, for example, the size of "
+        "the image being displayed."
+    };
+
+    static const openspace::properties::Property::PropertyInfo AlphaInfo = {
+        "Alpha",
+        "Transparency",
+        "This value determines the transparency of the screen space plane. If this value "
+        "is 1, the plane is completely opaque, if this value is 0, the plane is "
+        "completely transparent."
+    };
+
+    static const openspace::properties::Property::PropertyInfo DeleteInfo = {
+        "Delete",
+        "Delete",
+        "If this property is triggered, this screen space plane is removed from the "
+        "scene."
+    };
+} // namespace
 
 namespace openspace {
 
-Documentation ScreenSpaceRenderable::Documentation() {
+documentation::Documentation ScreenSpaceRenderable::Documentation() {
     using namespace openspace::documentation;
 
     return {
@@ -72,8 +131,8 @@ Documentation ScreenSpaceRenderable::Documentation() {
     };
 }
 
-ScreenSpaceRenderable* ScreenSpaceRenderable::createFromDictionary(
-    const ghoul::Dictionary& dictionary)
+std::unique_ptr<ScreenSpaceRenderable> ScreenSpaceRenderable::createFromDictionary(
+                                                      const ghoul::Dictionary& dictionary)
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
@@ -84,7 +143,7 @@ ScreenSpaceRenderable* ScreenSpaceRenderable::createFromDictionary(
     std::string renderableType = dictionary.value<std::string>(KeyType);
 
     auto factory = FactoryManager::ref().factory<ScreenSpaceRenderable>();
-    ScreenSpaceRenderable* result = factory->create(renderableType, dictionary);
+    std::unique_ptr<ScreenSpaceRenderable> result = factory->create(renderableType, dictionary);
     if (result == nullptr) {
         LERROR("Failed to create a ScreenSpaceRenderable object of type '" <<
                renderableType << "'"
@@ -95,28 +154,26 @@ ScreenSpaceRenderable* ScreenSpaceRenderable::createFromDictionary(
     return result;
 }
 
-
 ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary)
-    : _enabled("enabled", "Is Enabled", true)
-    , _useFlatScreen("flatScreen", "Flat Screen", true)
+    : properties::PropertyOwner("")
+    , _enabled(EnabledInfo, true)
+    , _useFlatScreen(FlatScreenInfo, true)
     , _euclideanPosition(
-        "euclideanPosition",
-        "Euclidean coordinates",
+        EuclideanPositionInfo,
         glm::vec2(0.f),
         glm::vec2(-4.f),
         glm::vec2(4.f)
     )
     , _sphericalPosition(
-        "sphericalPosition",
-        "Spherical coordinates",
-        glm::vec2(0.f, M_PI_2),
-        glm::vec2(-M_PI),
-        glm::vec2(M_PI)
+        SphericalPositionInfo,
+        glm::vec2(0.f, glm::half_pi<float>()),
+        glm::vec2(-glm::pi<float>()),
+        glm::vec2(glm::pi<float>())
     )
-    , _depth("depth", "Depth", 0.f, 0.f, 1.f)
-    , _scale("scale", "Scale", 0.25f, 0.f, 2.f)
-    , _alpha("alpha", "Alpha", 1.f, 0.f, 1.f)
-    , _delete("delete", "Delete")
+    , _depth(DepthInfo, 0.f, 0.f, 1.f)
+    , _scale(ScaleInfo, 0.25f, 0.f, 2.f)
+    , _alpha(AlphaInfo, 1.f, 0.f, 1.f)
+    , _delete(DeleteInfo)
     , _quad(0)
     , _vertexPositionBuffer(0)
     , _texture(nullptr)
@@ -130,19 +187,37 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     addProperty(_alpha);
     addProperty(_delete);
 
-
     dictionary.getValue(KeyFlatScreen, _useFlatScreen);
     useEuclideanCoordinates(_useFlatScreen);
     
-    if (_useFlatScreen)
+    if (_useFlatScreen) {
         dictionary.getValue(KeyPosition, _euclideanPosition);
-    else
+    }
+    else {
         dictionary.getValue(KeyPosition, _sphericalPosition);
+    }
 
 
     dictionary.getValue(KeyScale, _scale);
     dictionary.getValue(KeyDepth, _depth);
     dictionary.getValue(KeyAlpha, _alpha);
+
+    if (dictionary.hasKeyAndValue<std::string>(KeyTag)) {
+        std::string tagName = dictionary.value<std::string>(KeyTag);
+        if (!tagName.empty()) {
+            addTag(std::move(tagName));
+        }
+    } else if (dictionary.hasKeyAndValue<ghoul::Dictionary>(KeyTag)) {
+        ghoul::Dictionary tagNames = dictionary.value<ghoul::Dictionary>(KeyTag);
+        std::vector<std::string> keys = tagNames.keys();
+        std::string tagName;
+        for (const std::string& key : keys) {
+            tagName = tagNames.value<std::string>(key);
+            if (!tagName.empty()) {
+                addTag(std::move(tagName));
+            }
+        }
+    }
 
     // Setting spherical/euclidean onchange handler
     _useFlatScreen.onChange([this](){   
@@ -159,7 +234,10 @@ ScreenSpaceRenderable::ScreenSpaceRenderable(const ghoul::Dictionary& dictionary
     _delete.onChange([this](){
         std::string script = 
             "openspace.unregisterScreenSpaceRenderable('" + name() + "');";
-        OsEng.scriptEngine().queueScript(script, scripting::ScriptEngine::RemoteScripting::Yes);
+        OsEng.scriptEngine().queueScript(
+            script,
+            scripting::ScriptEngine::RemoteScripting::Yes
+        );
     });
 }
 
@@ -238,8 +316,8 @@ glm::vec2 ScreenSpaceRenderable::toEuclidean(const glm::vec2& spherical, float r
 }
 
 glm::vec2 ScreenSpaceRenderable::toSpherical(const glm::vec2& euclidean) {
-    _radius = -sqrt(pow(euclidean[0],2)+pow(euclidean[1],2)+pow(PlaneDepth,2));
-    float theta = atan2(-PlaneDepth,euclidean[0])-M_PI/2.0;
+    _radius = -sqrt(pow(euclidean[0],2) + pow(euclidean[1],2) + pow(PlaneDepth,2));
+    float theta = atan2(-PlaneDepth, euclidean[0]) - glm::half_pi<float>();
     float phi = acos(euclidean[1]/_radius);
 
     return glm::vec2(theta, phi);
@@ -288,14 +366,14 @@ glm::mat4 ScreenSpaceRenderable::scaleMatrix() {
 
 glm::mat4 ScreenSpaceRenderable::rotationMatrix() {
     // Get the scene transform
-    glm::mat4 rotation = OsEng.windowWrapper().modelMatrix();
+    glm::mat4 rotation = glm::inverse(OsEng.windowWrapper().modelMatrix());
     if (!_useEuclideanCoordinates) {
         glm::vec2 position = _sphericalPosition.value();
 
         rotation = glm::rotate(rotation, position.x, glm::vec3(0.f, 1.f, 0.f));
         rotation = glm::rotate(
             rotation,
-            static_cast<float>(position.y - M_PI_2),
+            position.y - glm::half_pi<float>(),
             glm::vec3(1.f, 0.f, 0.f)
         );
     }

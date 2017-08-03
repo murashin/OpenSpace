@@ -1,3 +1,5 @@
+local ganymede_local = 1.8213E6
+
 return {
     -- Ganymede module
     {   
@@ -7,9 +9,10 @@ return {
             Type = "RenderablePlanetProjection",
             Frame = "IAU_GANYMEDE", 
             Body = "GANYMEDE",
+            Radius = ganymede_local,
             Geometry = {
                 Type = "SimpleSphere",
-                Radius = { 1.8213, 6 },
+                Radius = ganymede_local,
                 Segments = 100
             },
             Textures = {
@@ -58,7 +61,7 @@ return {
         Parent = "Ganymede",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 7.4},
+            Size = 10^7.4,
             Origin = "Center",
             Billboard = true,
             Texture = "textures/Ganymede-Text.png",

@@ -24,19 +24,20 @@
 
 #include <openspace/util/timerange.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/util/spicemanager.h>
 
 #include <ghoul/misc/dictionary.h>
 
 namespace {
-    const std::string KeyStart = "Start";
-    const std::string KeyEnd = "End";
-}
+    const char* KeyStart = "Start";
+    const char* KeyEnd = "End";
+} // namespace
 
 namespace openspace {
 
-openspace::Documentation TimeRange::Documentation() {
+documentation::Documentation TimeRange::Documentation() {
     using namespace documentation;
     return {
         "Time Range",

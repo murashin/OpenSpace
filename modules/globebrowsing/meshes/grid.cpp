@@ -24,11 +24,9 @@
 
 #include <modules/globebrowsing/meshes/grid.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-Grid::Grid(int xSegments, int ySegments, TriangleSoup::Positions usePositions,
-           TriangleSoup::TextureCoordinates useTextures, TriangleSoup::Normals useNormals)
+Grid::Grid(int xSegments, int ySegments)
     : _xSegments(xSegments)
     , _ySegments(ySegments)
 {}
@@ -37,5 +35,4 @@ TriangleSoup& Grid::geometry() {
     return *_geometry;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

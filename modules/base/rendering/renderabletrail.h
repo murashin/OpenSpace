@@ -27,7 +27,6 @@
 
 #include <openspace/rendering/renderable.h>
 
-#include <openspace/documentation/documentation.h>
 #include <openspace/properties/optionproperty.h>
 #include <openspace/properties/scalar/boolproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
@@ -37,14 +36,14 @@
 
 #include <ghoul/opengl/ghoul_gl.h>
 
-namespace ghoul {
-namespace opengl {
+namespace ghoul::opengl {
     class ProgramObject;
     class Texture;
-}
-}
+} // namespace ghoul::opengl
 
 namespace openspace {
+
+namespace documentation { struct Documentation; }
 
 class Translation;
 
@@ -72,6 +71,8 @@ class Translation;
  */
 class RenderableTrail : public Renderable {
 public:
+    ~RenderableTrail() = default;
+
     bool initialize() override;
     bool deinitialize() override;
 
@@ -83,13 +84,13 @@ public:
      * \c _floatingRenderInformation using the provided \p data
      * \param data The data that is necessary to render this Renderable
      */
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
 
 protected:
     explicit RenderableTrail(const ghoul::Dictionary& dictionary);
 
     /// Returns the documentation entries that the con
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
    
     /// The layout of the VBOs
     struct TrailVBOLayout {

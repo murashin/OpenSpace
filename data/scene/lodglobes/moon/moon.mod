@@ -19,17 +19,9 @@ return {
         Renderable = {
             Type = "RenderableGlobe",
             Radii = {1738140, 1738140, 1735970}, -- Moons's radius
-            CameraMinHeight = 300,
-            InteractionDepthBelowEllipsoid = 5000, -- Useful when having negative height map values
             SegmentsPerPatch = 64,
             Layers = {
                 ColorLayers = {
-
-                },
-                GrayScaleColorOverlays = {
-
-                },
-                GrayScaleLayers = {
                     {
                         Name = "OnMoonColorGrayscale",
                         FilePath = "map_service_configs/OnMoonColor.xml",
@@ -48,25 +40,13 @@ return {
                         FilePath = "map_service_configs/Utah/Wac.wms"
                     }
                 },
-                NightLayers = {
-
-                },
-                WaterMasks = {
-                    
-                },
-                ColorOverlays = {
-                    
-                },
                 HeightLayers = {
                     {
-                        Name = "OnMoonHeight",
-                        FilePath = "map_service_configs/OnMoonHeight.xml",
-                        Enabled = true,
-                        DoPreProcessing = true,
-                    },
-                    {
                         Name = "LolaDem",
-                        FilePath = "map_service_configs/Utah/LolaDem.wms"
+                        FilePath = "map_service_configs/Utah/LolaDem.wms",
+                        Enabled = true,
+                        TilePixelSize = 64,
+                        Settings = { Multiplier = 0.5 },
                     }
                 },
             },

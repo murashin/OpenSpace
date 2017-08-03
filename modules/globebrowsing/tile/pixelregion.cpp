@@ -26,8 +26,7 @@
 
 #include <ghoul/misc/assert.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
    
 PixelRegion::PixelRegion(const PixelCoordinate& pixelStart,
                          const PixelRange& numberOfPixels)
@@ -119,10 +118,12 @@ void PixelRegion::scale(double s) {
 
 void PixelRegion::downscalePow2(int exponent, PixelCoordinate wrt) {
     start += wrt;
-    start.x >>= exponent;
-    start.y >>= exponent;
-    numPixels.x >>= exponent;
-    numPixels.y >>= exponent;
+    start.x = ceil(start.x / static_cast<float>(pow(2, exponent)));// >>= exponent;
+    start.y = ceil(start.y / static_cast<float>(pow(2, exponent)));// >>= exponent;
+    numPixels.x =
+        ceil(numPixels.x / static_cast<float>(pow(2, exponent)));// >>= exponent;
+    numPixels.y =
+        ceil(numPixels.y / static_cast<float>(pow(2, exponent)));// >>= exponent;
     start -= wrt;
 }
 
@@ -165,20 +166,25 @@ void PixelRegion::clampTo(const PixelRegion& boundingRegion) {
 void PixelRegion::forceNumPixelToDifferByNearestMultipleOf(unsigned int multiple) {
     ghoul_assert(multiple > 0, "multiple must be 1 or larger");
     int sizeDiff = numPixels.x - numPixels.y;
-    if (std::abs(sizeDiff) > 0) {
+    if (static_cast<int>(std::abs(static_cast<double>(sizeDiff))) > 0) {
         if (sizeDiff > 0) {
             numPixels.y += sizeDiff % multiple;
         }
         else {
-            numPixels.x += std::abs(sizeDiff) % multiple;
+            numPixels.x += static_cast<int>(
+                std::abs(static_cast<double>(sizeDiff))) % multiple;
         }
     }
 }
 
 void PixelRegion::roundUpNumPixelToNearestMultipleOf(unsigned int multiple) {
     ghoul_assert(multiple > 0, "multiple must be 1 or larger");
-    numPixels.x += numPixels.x % multiple;
-    numPixels.y += numPixels.y % multiple;
+    numPixels.x += (numPixels.x % multiple == 0) ? 0 :
+        (multiple - (numPixels.x % multiple));
+    numPixels.y += (numPixels.y % multiple == 0) ? 0 :
+        (multiple - (numPixels.y % multiple));
+    ghoul_assert((numPixels.x % multiple) == 0, "Round to nearest multiple failed");
+    ghoul_assert((numPixels.y % multiple) == 0, "Round to nearest multiple failed");
 }
 
 void PixelRegion::roundDownToQuadratic() {
@@ -233,14 +239,11 @@ int PixelRegion::area() const {
 
 int PixelRegion::edge(Side side) const {
     switch (side) {
-    case Side::LEFT:
-        return start.x;
-    case Side::TOP:
-        return start.y;
-    case Side::RIGHT:
-        return start.x + numPixels.x;
-    case Side::BOTTOM:
-        return start.y + numPixels.y;
+        case Side::LEFT:   return start.x;
+        case Side::TOP:    return start.y;
+        case Side::RIGHT:  return start.x + numPixels.x;
+        case Side::BOTTOM: return start.y + numPixels.y;
+        default:           throw ghoul::MissingCaseException();
     }
 }
 
@@ -254,13 +257,15 @@ PixelRegion::PixelCoordinate PixelRegion::end() const {
 
 bool PixelRegion::lineIntersect(Side side, int p) {
     switch (side) {
-    case Side::LEFT:
-    case Side::RIGHT:
-        return start.x <= p && p <= (start.x + numPixels.x);
+        case Side::LEFT:
+        case Side::RIGHT:
+            return start.x <= p && p <= (start.x + numPixels.x);
 
-    case Side::TOP:
-    case Side::BOTTOM:
-        return start.y <= p && p <= (start.y + numPixels.y);
+        case Side::TOP:
+        case Side::BOTTOM:
+            return start.y <= p && p <= (start.y + numPixels.y);
+        default:
+            throw ghoul::MissingCaseException();
     }
 }
 
@@ -274,5 +279,4 @@ bool PixelRegion::equals(const PixelRegion& r) const {
     return start == r.start && numPixels == r.numPixels;
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

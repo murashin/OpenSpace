@@ -30,8 +30,7 @@
 #include <ghoul/glm.h>
 #include <vector>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 /**
  * This grid is the same as <code>BasicGrid</code> except it has skirts around its edges.
@@ -57,8 +56,8 @@ public:
         TriangleSoup::Normals useNormals);
     ~SkirtedGrid() = default;
 
-    virtual int xSegments() const;
-    virtual int ySegments() const;
+    virtual int xSegments() const override;
+    virtual int ySegments() const override;
 
 private:
     std::vector<GLuint> createElements(int xRes, int yRes) override;
@@ -72,7 +71,6 @@ private:
     size_t numVertices(int xSegments, int ySegments);
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___SKIRTEDGRID___H__

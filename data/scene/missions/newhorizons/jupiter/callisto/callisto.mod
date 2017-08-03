@@ -1,3 +1,5 @@
+local callisto_radius = 1.8213E6
+
 return {
     -- Callisto module
     {   
@@ -7,9 +9,10 @@ return {
             Type = "RenderablePlanetProjection",
             Frame = "IAU_CALLISTO",
             Body = "CALLISTO",
+            Radius = callisto_radius,
             Geometry = {
                 Type = "SimpleSphere",
-                Radius = { 1.8213, 6 },
+                Radius = callisto_radius,
                 Segments = 100
             },
             Textures = {
@@ -58,7 +61,7 @@ return {
         Parent = "Callisto",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 7.4},
+            Size = 10^7.4,
             Origin = "Center",
             Billboard = true,
             Texture = "textures/Callisto-Text.png",

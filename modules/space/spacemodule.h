@@ -22,8 +22,8 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-#ifndef __OPENSPACE_MODULE_SPACE___BASEMODULE___H__
-#define __OPENSPACE_MODULE_SPACE___BASEMODULE___H__
+#ifndef __OPENSPACE_MODULE_SPACE___SPACEMODULE___H__
+#define __OPENSPACE_MODULE_SPACE___SPACEMODULE___H__
 
 #include <openspace/util/openspacemodule.h>
 
@@ -31,9 +31,11 @@ namespace openspace {
 
 class SpaceModule : public OpenSpaceModule {
 public:
+    constexpr static const char* Name = "Space";
+
     SpaceModule();
-    
-    std::vector<Documentation> documentations() const override;
+    virtual ~SpaceModule() = default;
+    std::vector<documentation::Documentation> documentations() const override;
 
 protected:
     void internalInitialize() override;
@@ -41,4 +43,4 @@ protected:
 
 } // namespace openspace
 
-#endif // __OPENSPACE_MODULE_SPACE___BASEMODULE___H__
+#endif // __OPENSPACE_MODULE_SPACE___SPACEMODULE___H__

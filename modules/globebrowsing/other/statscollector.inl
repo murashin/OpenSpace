@@ -1,4 +1,3 @@
-#include "statscollector.h"
 /*****************************************************************************************
  *                                                                                       *
  * OpenSpace                                                                             *
@@ -23,15 +22,14 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 template <typename T>
 TemplatedStatsCollector<T>::TemplatedStatsCollector(bool& enabled,
                                                     const std::string& delimiter)
     : _enabled(enabled)
-    , _delimiter(delimiter)
     , _writePos(0)
+    , _delimiter(delimiter)
 {}
 
 template <typename T>
@@ -109,5 +107,4 @@ void TemplatedStatsCollector<T>::writeNextRecord(std::ostream& os) {
     }
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

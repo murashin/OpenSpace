@@ -33,11 +33,11 @@
 
 namespace openspace {
 
+namespace documentation { struct Documentation; }
+
 struct Image;
 
-namespace planetgeometry {
-    class PlanetGeometry;
-}
+namespace planetgeometry { class PlanetGeometry; }
 
 class RenderablePlanetProjection : public Renderable {
 public:
@@ -48,11 +48,11 @@ public:
     bool deinitialize() override;
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
     ghoul::opengl::Texture& baseTexture() const;
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 protected:
     bool loadTextures();
@@ -75,8 +75,9 @@ private:
     std::unique_ptr<ghoul::opengl::Texture> _baseTexture;
     std::unique_ptr<ghoul::opengl::Texture> _heightMapTexture;
 
+    properties::BoolProperty _shiftMeridianBy180;
+
     properties::FloatProperty _heightExaggeration;
-    properties::FloatProperty _debugProjectionTextureRotation;
 
     std::unique_ptr<planetgeometry::PlanetGeometry> _geometry;
     

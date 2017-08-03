@@ -28,12 +28,21 @@
 #include <ghoul/logging/logmanager.h>
 #include <ghoul/filesystem/filesystem.h>
 
+#ifdef WIN32
+#pragma warning (push)
+#pragma warning (disable : 4619) // #pragma warning: there is no warning number '4675'
+#endif // WIN32
+
 #include <ccmc/Kameleon.h>
 #include <ccmc/Model.h>
 #include <ccmc/Interpolator.h>
 #include <ccmc/BATSRUS.h>
 #include <ccmc/ENLIL.h>
 #include <ccmc/CCMCTime.h>
+
+#ifdef WIN32
+#pragma warning (pop)
+#endif // WIN32
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -463,7 +472,7 @@ float* KameleonWrapper::getUniformSliceValues(
 
                 if(value != missingValue){
                     doubleData[index] = value;
-                    data[index] = value;
+                    data[index] = static_cast<float>(value);
                     // if(value > maxValue){
                     //     maxValue = value;
                     // }
@@ -636,7 +645,7 @@ KameleonWrapper::Fieldlines KameleonWrapper::getFieldLines(
 
 KameleonWrapper::Fieldlines KameleonWrapper::getLorentzTrajectories(
     const std::vector<glm::vec3>& seedPoints, 
-    const glm::vec4& color, 
+    const glm::vec4& /*color*/, 
     float stepsize) 
 {
     LINFO("Creating " << seedPoints.size() << " Lorentz force trajectories");
@@ -940,9 +949,24 @@ void KameleonWrapper::getGridVariables(std::string& x, std::string& y, std::stri
     y = tokens.at(1);
     z = tokens.at(2);
 
-    std::transform(x.begin(), x.end(), x.begin(), ::tolower);
-    std::transform(y.begin(), y.end(), y.begin(), ::tolower);
-    std::transform(z.begin(), z.end(), z.begin(), ::tolower);
+    std::transform(
+        x.begin(),
+        x.end(),
+        x.begin(),
+        [](char c) { return static_cast<char>(tolower(c)); }
+    );
+    std::transform(
+        y.begin(),
+        y.end(),
+        y.begin(),
+        [](char c) { return static_cast<char>(tolower(c)); }
+    );
+    std::transform(
+        z.begin(),
+        z.end(),
+        z.begin(),
+        [](char c) { return static_cast<char>(tolower(c)); }
+    );
 }
 
 KameleonWrapper::GridType KameleonWrapper::getGridType(
@@ -1008,38 +1032,34 @@ glm::vec4 KameleonWrapper::classifyFieldline(FieldlineEnd fEnd, FieldlineEnd bEn
     return color;
 }
 
-std::string KameleonWrapper::getParent(){
-    if(    _type == KameleonWrapper::Model::BATSRUS ||
-        _type == KameleonWrapper::Model::OpenGGCM ||
-        _type == KameleonWrapper::Model::LFM)
-    {
+std::string KameleonWrapper::getParent() {
+    switch (_type) {
+    case KameleonWrapper::Model::BATSRUS:
+    case KameleonWrapper::Model::OpenGGCM:
+    case KameleonWrapper::Model::LFM:
         return "Earth";
-    }else if(
-        _type == KameleonWrapper::Model::ENLIL ||
-        _type == KameleonWrapper::Model::MAS ||
-        _type == KameleonWrapper::Model::Adapt3D ||
-        _type == KameleonWrapper::Model::SWMF)
-    {
+    case  KameleonWrapper::Model::ENLIL:
+    case KameleonWrapper::Model::MAS:
+    case KameleonWrapper::Model::Adapt3D:
+    case KameleonWrapper::Model::SWMF:
         return "Sun";
-    }else{
+    default:
         return "";
     }
 }
 
-std::string KameleonWrapper::getFrame(){
-    if(    _type == KameleonWrapper::Model::BATSRUS ||
-        _type == KameleonWrapper::Model::OpenGGCM ||
-        _type == KameleonWrapper::Model::LFM)
-    {
+std::string KameleonWrapper::getFrame() {
+    switch (_type) {
+    case KameleonWrapper::Model::BATSRUS:
+    case KameleonWrapper::Model::OpenGGCM:
+    case KameleonWrapper::Model::LFM:
         return "GSM";
-    }else if(
-        _type == KameleonWrapper::Model::ENLIL ||
-        _type == KameleonWrapper::Model::MAS ||
-        _type == KameleonWrapper::Model::Adapt3D ||
-        _type == KameleonWrapper::Model::SWMF)
-    {
+    case  KameleonWrapper::Model::ENLIL:
+    case KameleonWrapper::Model::MAS:
+    case KameleonWrapper::Model::Adapt3D:
+    case KameleonWrapper::Model::SWMF:
         return "HEEQ";
-    }else{
+    default:
         return "";
     }
 }
@@ -1050,8 +1070,6 @@ std::vector<std::string> KameleonWrapper::getVariables(){
     int numVariables = _model->getNumberOfVariables();
 
     for(int i=0; i<numVariables; i++){
-        // std::cout << _model->getVariableName(i) << " ";
-        // std::cout << _model->getVariableName(i) << std::endl;
         variableNames.push_back(_model->getVariableName(i));;
     }
     return variableNames;

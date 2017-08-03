@@ -26,12 +26,12 @@
 
 #include <modules/space/rendering/planetgeometry.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/scene/scenegraphnode.h>
 #include <openspace/util/factorymanager.h>
-#include <openspace/util/time.h>
 
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/io/texture/texturereader.h>
@@ -52,21 +52,50 @@
 #endif
 
 namespace {
-    const std::string _loggerCat = "RenderablePlanetProjection";
+    const char* _loggerCat = "RenderablePlanetProjection";
 
     const char* keyGeometry = "Geometry";
     const char* keyProjection = "Projection";
+    const char* keyMeridianShift = "Textures.MeridianShift";
     const char* keyColorTexture = "Textures.Color";
     const char* keyHeightTexture = "Textures.Height";
 
     const char* keyRadius = "Geometry.Radius";
-    const char* keyShading = "PerformShading";
+//    const char* keyShading = "PerformShading";
     const char* _mainFrame = "GALACTIC";
-}
+
+    static const openspace::properties::Property::PropertyInfo ColorTextureInfo = {
+        "PlanetTexture",
+        "Color Base Texture",
+        "The path to the base color texture that is used on the planet prior to any "
+        "image projection."
+    };
+
+    static const openspace::properties::Property::PropertyInfo HeightTextureInfo = {
+        "HeightMap",
+        "Heightmap Texture",
+        "The path to the height map texture that is used for the planet. If no height "
+        "map is specified the planet does not use a height field."
+    };
+
+    static const openspace::properties::Property::PropertyInfo ShiftMeridianInfo = {
+        "ShiftMeridian",
+        "Shift Meridian by 180 deg",
+        "Shift the position of the meridian by 180 degrees. This value "
+    };
+
+    static const openspace::properties::Property::PropertyInfo HeightExaggerationInfo = {
+        "HeightExaggeration",
+        "Height Exaggeration",
+        "This value determines the level of height exaggeration that is applied to a "
+        "potential height field. A value of '0' inhibits the height field, whereas a "
+        "value of '1' uses the measured height field."
+    };
+} // namespace
 
 namespace openspace {
 
-Documentation RenderablePlanetProjection::Documentation() {
+documentation::Documentation RenderablePlanetProjection::Documentation() {
     using namespace openspace::documentation;
     return {
         "Renderable Planet Projection",
@@ -91,20 +120,28 @@ Documentation RenderablePlanetProjection::Documentation() {
                 Optional::No
             },
             {
-                keyColorTexture,
+                keyMeridianShift,
+                new BoolVerifier,
+                "Determines whether the meridian of the planet should be shifted by 180 "
+                "degrees. The default value is 'false'",
+                Optional::Yes
+            },
+            {
+                keyColorTexture, // @TODO This should be ColorTextureInfo.identifier
                 new StringVerifier,
-                "The path to the base color texture that is used on the planet prior to "
-                "any image projection. The path can use tokens of the form '${...}' or "
-                "be specified relative to the directory of the mod file.",
+                ColorTextureInfo.description,
                 Optional::No
             },
             {
-                keyHeightTexture,
+                keyHeightTexture, // @TODO This should be HeightTextureInfo.identifier
                 new StringVerifier,
-                "The path to the height map texture that is used on the planet. The path "
-                "can use tokens of the form '${...}' or be specified relative to the "
-                "directory of the mod file. If no height map is specified the planet "
-                "does not use a height field.",
+                HeightTextureInfo.description,
+                Optional::Yes
+            },
+            {
+                HeightExaggerationInfo.identifier,
+                new DoubleVerifier,
+                HeightExaggerationInfo.description,
                 Optional::Yes
             }
         }
@@ -113,21 +150,21 @@ Documentation RenderablePlanetProjection::Documentation() {
 
 RenderablePlanetProjection::RenderablePlanetProjection(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
-    , _colorTexturePath("planetTexture", "RGB Texture")
-    , _heightMapTexturePath("heightMap", "Heightmap Texture")
-    , _rotation("rotation", "Rotation", 0, 0, 360)
-    , _heightExaggeration("heightExaggeration", "Height Exaggeration", 1.f, 0.f, 100.f)
-    , _debugProjectionTextureRotation("debug.projectionTextureRotation", "Projection Texture Rotation", 0.f, 0.f, 360.f)
+    , _colorTexturePath(ColorTextureInfo)
+    , _heightMapTexturePath(HeightTextureInfo)
+    , _rotation({ "Rotation", "Rotation", "" }, 0, 0, 360) // @TODO Missing documentation
     , _programObject(nullptr)
     , _fboProgramObject(nullptr)
     , _baseTexture(nullptr)
     , _heightMapTexture(nullptr)
+    , _shiftMeridianBy180({"asd", "", ""  }, false) // @TODO Missing documentation
+    , _heightExaggeration(HeightExaggerationInfo, 1.f, 0.f, 100.f)
     , _capture(false)
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
         dictionary,
-        "RenderablePlanetProject"
+        "RenderablePlanetProjection"
     );
 
     std::string name;
@@ -151,18 +188,23 @@ RenderablePlanetProjection::RenderablePlanetProjection(const ghoul::Dictionary& 
     // as the requirements are fixed (ab)
     std::string texturePath = "";
     success = dictionary.getValue("Textures.Color", texturePath);
-    if (success){
+    if (success) {
         _colorTexturePath = absPath(texturePath); 
     }
 
     std::string heightMapPath = "";
     success = dictionary.getValue("Textures.Height", heightMapPath);
-    if (success)
+    if (success) {
         _heightMapTexturePath = absPath(heightMapPath);
+    }
 
-    glm::vec2 radius = glm::vec2(1.0, 9.0);
+    if (dictionary.hasKeyAndValue<bool>(keyMeridianShift)) {
+        _shiftMeridianBy180 = dictionary.value<bool>(keyMeridianShift);
+    }
+
+    float radius = std::pow(10.f, 9.f);
     dictionary.getValue(keyRadius, radius);
-    setBoundingSphere(pss(radius));
+    setBoundingSphere(radius);
 
     addPropertySubOwner(_geometry.get());
     addPropertySubOwner(_projectionComponent);
@@ -173,8 +215,15 @@ RenderablePlanetProjection::RenderablePlanetProjection(const ghoul::Dictionary& 
     addProperty(_heightMapTexturePath);
     _heightMapTexturePath.onChange(std::bind(&RenderablePlanetProjection::loadTextures, this));
 
+    if (dictionary.hasKey(HeightExaggerationInfo.identifier)) {
+        _heightExaggeration = static_cast<float>(
+            dictionary.value<double>(HeightExaggerationInfo.identifier)
+        );
+    }
+
     addProperty(_heightExaggeration);
-    addProperty(_debugProjectionTextureRotation);
+
+    addProperty(_shiftMeridianBy180);
 }
 
 RenderablePlanetProjection::~RenderablePlanetProjection() {}
@@ -264,7 +313,7 @@ void RenderablePlanetProjection::imageProjectGPU(
 
     if (_geometry->hasProperty("radius")){ 
         ghoul::any r = _geometry->property("radius")->get();
-        if (glm::vec4* radius = ghoul::any_cast<glm::vec4>(&r)){
+        if (glm::vec3* radius = ghoul::any_cast<glm::vec3>(&r)){
             _fboProgramObject->setUniform("_radius", radius);
         }
     }else{
@@ -339,7 +388,7 @@ void RenderablePlanetProjection::attitudeParameters(double time) {
     glm::vec3 cpos = position.vec3();
 
     float distance = glm::length(cpos);
-    float radius = getBoundingSphere().lengthf();
+    float radius = boundingSphere();
 
     _projectorMatrix = _projectionComponent.computeProjectorMatrix(
         cpos,
@@ -358,7 +407,7 @@ ghoul::opengl::Texture& RenderablePlanetProjection::baseTexture() const {
     return _projectionComponent.projectionTexture();
 }
 
-void RenderablePlanetProjection::render(const RenderData& data) {
+void RenderablePlanetProjection::render(const RenderData& data, RendererTasks&) {
     if (_projectionComponent.needsClearProjection())
         _projectionComponent.clearAllProjections();
 
@@ -415,7 +464,9 @@ void RenderablePlanetProjection::render(const RenderData& data) {
     //_programObject->setUniform("debug_projectionTextureRotation", glm::radians(_debugProjectionTextureRotation.value()));
 
     //setPscUniforms(*_programObject.get(), data.camera, data.position);
-    
+
+    _programObject->setUniform("shiftMeridian", _shiftMeridianBy180);
+
     ghoul::opengl::TextureUnit unit[3];
     unit[0].activate();
     _baseTexture->bind();
@@ -446,7 +497,7 @@ void RenderablePlanetProjection::update(const UpdateData& data) {
 
     _projectionComponent.update();
 
-    _time = Time::ref().j2000Seconds();
+    _time = data.time.j2000Seconds();
     _capture = false;
 
     if (openspace::ImageSequencer::ref().isReady()){
@@ -467,7 +518,9 @@ bool RenderablePlanetProjection::loadTextures() {
     using ghoul::opengl::Texture;
     _baseTexture = nullptr;
     if (_colorTexturePath.value() != "") {
-        _baseTexture = ghoul::io::TextureReader::ref().loadTexture(_colorTexturePath);
+        _baseTexture = ghoul::io::TextureReader::ref().loadTexture(
+            absPath(_colorTexturePath)
+        );
         if (_baseTexture) {
             ghoul::opengl::convertTextureFormat(*_baseTexture, Texture::Format::RGB);
             _baseTexture->uploadTexture();
@@ -477,7 +530,9 @@ bool RenderablePlanetProjection::loadTextures() {
 
     _heightMapTexture = nullptr;
     if (_heightMapTexturePath.value() != "") {
-        _heightMapTexture = ghoul::io::TextureReader::ref().loadTexture(_heightMapTexturePath);
+        _heightMapTexture = ghoul::io::TextureReader::ref().loadTexture(
+            absPath(_heightMapTexturePath)
+        );
         if (_heightMapTexture) {
             ghoul::opengl::convertTextureFormat(*_heightMapTexture, Texture::Format::RGB);
             _heightMapTexture->uploadTexture();

@@ -25,23 +25,28 @@
 #ifndef __OPENSPACE_CORE___TIMEMANAGER___H__
 #define __OPENSPACE_CORE___TIMEMANAGER___H__
 
+#include <vector>
 #include <deque>
-#include <openspace/network/messagestructures.h>
+#include <openspace/util/timeline.h>
+#include <openspace/util/time.h>
+#include <openspace/util/syncdata.h>
 
 namespace openspace {
 
 class TimeManager {
 public:
+    Time& time();
+    std::vector<Syncable*> getSyncables();
     void preSynchronization(double dt);
-    void addKeyframe(const datamessagestructures::TimeKeyframe& kf);
+    void addKeyframe(double timestamp, Time kf);
     void removeKeyframesBefore(double timestamp);
+    void removeKeyframesAfter(double timestamp);
     void clearKeyframes();
+    size_t nKeyframes() const;
 private:
+    Timeline<Time> _timeline;
+    SyncData<Time> _currentTime;
     void consumeKeyframes(double dt);
-    std::deque<datamessagestructures::TimeKeyframe> _keyframes;
-    static bool compareKeyframeTimes(
-        const datamessagestructures::TimeKeyframe& a,
-        const datamessagestructures::TimeKeyframe& b);
     double _latestConsumedTimestamp;
 };
 

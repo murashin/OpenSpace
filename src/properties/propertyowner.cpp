@@ -24,33 +24,31 @@
 
 #include <openspace/properties/propertyowner.h>
 
+#include <openspace/properties/property.h>
 #include <ghoul/logging/logmanager.h>
+#include <ghoul/misc/assert.h>
 
 #include <algorithm>
-#include <assert.h>
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
 namespace {
-const std::string _loggerCat = "PropertyOwner";
+    const char* _loggerCat = "PropertyOwner";
 
-bool propertyLess(Property* lhs, Property* rhs)
-{
-    return lhs->identifier() < rhs->identifier();
-}
-    
-bool subOwnerLess(PropertyOwner* lhs, PropertyOwner* rhs) {
-    return lhs->name() < rhs->name();
-}
-    
-}
+    bool propertyLess(Property* lhs, Property* rhs) {
+        return lhs->identifier() < rhs->identifier();
+    }
 
-PropertyOwner::PropertyOwner()
-    : _name("")
+    bool subOwnerLess(PropertyOwner* lhs, PropertyOwner* rhs) {
+        return lhs->name() < rhs->name();
+    }
+} // namespace
+
+
+PropertyOwner::PropertyOwner(std::string name)
+    : _name(std::move(name))
     , _owner(nullptr)
-{
-}
+{}
 
 PropertyOwner::~PropertyOwner() {
     _properties.clear();
@@ -73,14 +71,11 @@ std::vector<Property*> PropertyOwner::propertiesRecursive() const {
 }
 
 Property* PropertyOwner::property(const std::string& id) const {
-    assert(std::is_sorted(_properties.begin(), _properties.end(), propertyLess));
-
-    // As the _properties list is sorted, just finding the lower bound is sufficient
-    std::vector<Property*>::const_iterator it
-          = std::lower_bound(_properties.begin(), _properties.end(), id,
-                             [](Property* prop, const std::string& str) {
-              return prop->identifier() < str;
-          });
+    std::vector<Property*>::const_iterator it = std::find_if(
+        _properties.begin(),
+        _properties.end(),
+        [&id](Property* prop) { return prop->identifier() == id; }
+    );
 
     if (it == _properties.end() || (*it)->identifier() != id) {
         // if we do not own the searched property, it must consist of a concatenated
@@ -118,19 +113,18 @@ std::vector<PropertyOwner*> PropertyOwner::propertySubOwners() const {
 }
 
 PropertyOwner* PropertyOwner::propertySubOwner(const std::string& name) const {
-    assert(std::is_sorted(_subOwners.begin(), _subOwners.end(), subOwnerLess));
+    std::vector<PropertyOwner*>::const_iterator it = std::find_if(
+        _subOwners.begin(),
+        _subOwners.end(),
+        [&name](PropertyOwner* owner) { return owner->name() == name;  }
+    );
     
-    // As the _subOwners list is sorted, getting the lower bound is sufficient
-    std::vector<PropertyOwner*>::const_iterator it
-    = std::lower_bound(_subOwners.begin(), _subOwners.end(), name,
-                       [](PropertyOwner* owner, const std::string& str) {
-                           return owner->name() < str;
-                       });
-    
-    if (it == _subOwners.end() || (*it)->name() != name)
+    if (it == _subOwners.end() || (*it)->name() != name) {
         return nullptr;
-    else
+    }
+    else {
         return *it;
+    }
 }
     
 bool PropertyOwner::hasPropertySubOwner(const std::string& name) const {
@@ -143,48 +137,43 @@ void PropertyOwner::setPropertyGroupName(std::string groupID, std::string name) 
     
 std::string PropertyOwner::propertyGroupName(const std::string& groupID) const {
     auto it = _groupNames.find(groupID);
-    if (it == _groupNames.end())
+    if (it == _groupNames.end()) {
         return groupID;
-    else
+    }
+    else {
         return it->second;
+    }
 }
 
-void PropertyOwner::addProperty(Property* prop)
-{
-    assert(prop != nullptr);
-    assert(std::is_sorted(_properties.begin(), _properties.end(), propertyLess));
-    assert(std::is_sorted(_subOwners.begin(), _subOwners.end(), subOwnerLess));
+void PropertyOwner::addProperty(Property* prop) {
+    ghoul_assert(prop != nullptr, "prop must not be nullptr");
 
     if (prop->identifier().empty()) {
         LERROR("No property identifier specified");
         return;
     }
-
     // See if we can find the identifier of the property to add in the properties list
-    // The _properties list is sorted, so getting the lower bound is sufficient
-    std::vector<Property*>::iterator it
-          = std::lower_bound(_properties.begin(), _properties.end(), prop->identifier(),
-                             [](Property* prop, const std::string& str) {
-              return prop->identifier() < str;
-          });
+    std::vector<Property*>::const_iterator it = std::find_if(
+        _properties.begin(),
+        _properties.end(),
+        [id = prop->identifier()](Property* prop) { return prop->identifier() == id; }
+    );
 
     // If we found the property identifier, we need to bail out
     if (it != _properties.end() && (*it)->identifier() == prop->identifier()) {
-        LERROR("Property identifier '" << prop->identifier()
-                                       << "' already present in PropertyOwner '"
-                                       << name() << "'");
+        LERROR("Property identifier '" << prop->identifier() <<
+            "' already present in PropertyOwner '" << name() << "'");
         return;
     } else {
         // Otherwise we still have to look if there is a PropertyOwner with the same name
         const bool hasOwner = hasPropertySubOwner(prop->identifier());
         if (hasOwner) {
-            LERROR("Property identifier '" << prop->identifier() << "' already names a"
+            LERROR("Property identifier '" << prop->identifier() << "' already names a "
                 << "registed PropertyOwner");
             return;
         }                    
         else {
-            // now have found the correct position to add it in
-            _properties.insert(it, prop);
+            _properties.push_back(prop);
             prop->setPropertyOwner(this);
         }
     }
@@ -195,26 +184,20 @@ void PropertyOwner::addProperty(Property& prop) {
 }
     
 void PropertyOwner::addPropertySubOwner(openspace::properties::PropertyOwner* owner) {
-    assert(owner != nullptr);
-    assert(std::is_sorted(_properties.begin(), _properties.end(), propertyLess));
-    assert(std::is_sorted(_subOwners.begin(), _subOwners.end(), subOwnerLess));
-    
-    if (owner->name().empty()) {
-        LERROR("PropertyOwner did not have a name");
-        return;
-    }
+    ghoul_assert(owner != nullptr, "owner must not be nullptr");
+    ghoul_assert(!owner->name().empty(), "PropertyOwner must have a name");
     
     // See if we can find the name of the propertyowner to add using the lower bound
-    std::vector<PropertyOwner*>::iterator it
-    = std::lower_bound(_subOwners.begin(), _subOwners.end(), owner->name(),
-                       [](PropertyOwner* owner, const std::string& str) {
-                           return owner->name() < str;
-                       });
+    std::vector<PropertyOwner*>::const_iterator it = std::find_if(
+        _subOwners.begin(),
+        _subOwners.end(),
+        [name = owner->name()](PropertyOwner* owner) { return owner->name() == name;  }
+    );
     
     // If we found the propertyowner's name, we need to bail out
     if (it != _subOwners.end() && (*it)->name() == owner->name()) {
-        LERROR("PropertyOwner '" << owner->name()
-               << "' already present in PropertyOwner '" << name() << "'");
+        LERROR("PropertyOwner '" << owner->name() <<
+            "' already present in PropertyOwner '" << name() << "'");
         return;
     } else {
         // We still need to check if the PropertyOwners name is used in a Property
@@ -225,12 +208,10 @@ void PropertyOwner::addPropertySubOwner(openspace::properties::PropertyOwner* ow
             return;
         }
         else {
-            // Otherwise we have found the correct position to add it in
-            _subOwners.insert(it, owner);
+            _subOwners.push_back(owner);
             owner->setPropertyOwner(this);
         }
     }
-    
 }
     
 void PropertyOwner::addPropertySubOwner(openspace::properties::PropertyOwner& owner) {
@@ -238,22 +219,23 @@ void PropertyOwner::addPropertySubOwner(openspace::properties::PropertyOwner& ow
 }
 
 void PropertyOwner::removeProperty(Property* prop) {
-    assert(prop != nullptr);
+    ghoul_assert(prop != nullptr, "prop must not be nullptr");
 
     // See if we can find the identifier of the property to add in the properties list
-    std::vector<Property*>::iterator it
-          = std::lower_bound(_properties.begin(), _properties.end(), prop->identifier(),
-                             [](Property* prop, const std::string& str) {
-              return prop->identifier() < str;
-          });
+    std::vector<Property*>::const_iterator it = std::find_if(
+        _properties.begin(),
+        _properties.end(),
+        [id = prop->identifier()](Property* prop) { return prop->identifier() == id; }
+    );
 
     // If we found the property identifier, we can delete it
     if (it != _properties.end() && (*it)->identifier() == prop->identifier()) {
         (*it)->setPropertyOwner(nullptr);
         _properties.erase(it);
-    } else
-        LERROR("Property with identifier '" << prop->identifier()
-                                            << "' not found for removal.");
+    } else {
+        LERROR("Property with identifier '" << prop->identifier() <<
+            "' not found for removal.");
+    }
 }
 
 void PropertyOwner::removeProperty(Property& prop) {
@@ -261,21 +243,22 @@ void PropertyOwner::removeProperty(Property& prop) {
 }
     
 void PropertyOwner::removePropertySubOwner(openspace::properties::PropertyOwner* owner) {
-    assert(owner != nullptr);
+    ghoul_assert(owner != nullptr, "owner must not be nullptr");
     
     // See if we can find the name of the propertyowner to add
-    std::vector<PropertyOwner*>::iterator it
-    = std::lower_bound(_subOwners.begin(), _subOwners.end(), owner->name(),
-                       [](PropertyOwner* owner, const std::string& str) {
-                           return owner->name() < str;
-                       });
+    std::vector<PropertyOwner*>::const_iterator it = std::find_if(
+        _subOwners.begin(),
+        _subOwners.end(),
+        [name = owner->name()](PropertyOwner* owner) { return owner->name() == name;  }
+    );
     
     // If we found the propertyowner, we can delete it
     if (it != _subOwners.end() && (*it)->name() == owner->name()) {
         _subOwners.erase(it);
-    } else
-        LERROR("PropertyOwner with name '" << owner->name()
-               << "' not found for removal.");
+    } else {
+        LERROR("PropertyOwner with name '" << owner->name() <<
+            "' not found for removal.");
+    }
 }
     
 void PropertyOwner::removePropertySubOwner(openspace::properties::PropertyOwner& owner) {
@@ -290,5 +273,12 @@ const std::string& PropertyOwner::name() const {
     return _name;
 }
 
-} // namespace properties
-} // namespace openspace
+std::vector<std::string> PropertyOwner::tags() const {
+    return _tags;
+}
+
+void PropertyOwner::addTag(std::string tag) {
+    _tags.push_back(std::move(tag));
+}
+
+} // namespace openspace::properties

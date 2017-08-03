@@ -31,8 +31,7 @@
 
 using std::numeric_limits;
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
 #define DEFAULT_FROM_LUA_LAMBDA(TYPE, DEFAULT_VALUE)                                     \
     [](lua_State* state, bool& success) -> TYPE {                                        \
@@ -60,6 +59,9 @@ namespace properties {
         if (success) {                                                                   \
             return v;                                                                    \
         }                                                                                \
+        else {                                                                           \
+            throw ghoul::RuntimeError("Conversion error for string: " + value);          \
+        }                                                                                \
     }
 
 #define DEFAULT_TO_STRING_LAMBDA(TYPE)                                                   \
@@ -68,14 +70,13 @@ namespace properties {
         return true;                                                                     \
     }
 
-REGISTER_NUMERICALPROPERTY_SOURCE(SignedCharProperty, signed char, (signed char)(0),
+REGISTER_NUMERICALPROPERTY_SOURCE(SignedCharProperty, signed char, 0,
                                   numeric_limits<signed char>::lowest(),
-                                  numeric_limits<signed char>::max(), (signed char)0,
-                                  DEFAULT_FROM_LUA_LAMBDA(signed char, (signed char)(0)),
+                                  numeric_limits<signed char>::max(), 0,
+                                  DEFAULT_FROM_LUA_LAMBDA(signed char, 0),
                                   DEFAULT_TO_LUA_LAMBDA(signed char),
-                                  DEFAULT_FROM_STRING_LAMBDA(signed char, (signed char)(0)),
+                                  DEFAULT_FROM_STRING_LAMBDA(signed char, 0),
                                   DEFAULT_TO_STRING_LAMBDA(signed char),
                                   LUA_TNUMBER);
 
-}  // namespace properties
-} // namespace openspace
+} // namespace openspace::properties

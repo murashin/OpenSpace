@@ -26,22 +26,20 @@
 
 #include <modules/globebrowsing/tile/tiledepthtransform.h>
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
-void GPUTileDepthTransform::setValue(ProgramObject* programObject, 
+void GPUTileDepthTransform::setValue(ghoul::opengl::ProgramObject* programObject,
                                      const TileDepthTransform& depthTransform)
 {
-    gpuDepthOffset.setValue(programObject, depthTransform.depthOffset);
-    gpuDepthScale.setValue(programObject, depthTransform.depthScale);
+    _gpuDepthOffset.setValue(programObject, depthTransform.depthOffset);
+    _gpuDepthScale.setValue(programObject, depthTransform.depthScale);
 }
 
-void GPUTileDepthTransform::bind(ProgramObject* programObject,
+void GPUTileDepthTransform::bind(ghoul::opengl::ProgramObject* programObject,
                                  const std::string& nameBase)
 {
-    gpuDepthOffset.bind(programObject, nameBase + "depthOffset");
-    gpuDepthScale.bind(programObject, nameBase + "depthScale");
+    _gpuDepthOffset.bind(programObject, nameBase + "depthOffset");
+    _gpuDepthScale.bind(programObject, nameBase + "depthScale");
 }
 
-}  // namespace globebrowsing
-}  // namespace openspace
+}  // namespace openspace::globebrowsing

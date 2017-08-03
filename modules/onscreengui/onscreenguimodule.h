@@ -30,12 +30,21 @@
 #include <modules/onscreengui/include/gui.h>
 
 namespace openspace {
-    
+
+struct Touch {
+    bool active;
+    glm::vec2 pos;
+    uint32_t action;
+};
+
 class OnScreenGUIModule : public OpenSpaceModule {
 public:
+    constexpr static const char* Name = "OnScreenGUI";
+
     OnScreenGUIModule();
     
-    static gui::GUI gui;
+    gui::GUI gui;
+    Touch touchInput = { false, glm::vec2(0), 0 };
 };
 
 } // namespace openspace

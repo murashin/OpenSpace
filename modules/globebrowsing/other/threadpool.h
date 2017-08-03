@@ -31,11 +31,11 @@
 #include <queue>
 #include <thread>
 #include <vector>
+#include <atomic>
 
 // Implementatin based on http://progsch.net/wordpress/?p=81
 
-namespace openspace {
-namespace globebrowsing {    
+namespace openspace::globebrowsing {
 
 class ThreadPool;
 
@@ -50,6 +50,7 @@ private:
 class ThreadPool {
 public:
     ThreadPool(size_t numThreads);
+    ThreadPool(const ThreadPool& toCopy);
     ~ThreadPool();
 
     void enqueue(std::function<void()> f);
@@ -68,7 +69,6 @@ private:
     bool stop;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___THREAD_POOL___H__

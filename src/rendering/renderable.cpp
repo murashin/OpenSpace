@@ -23,28 +23,36 @@
  ****************************************************************************************/
 
 #include <openspace/rendering/renderable.h>
-#include <openspace/util/factorymanager.h>
-#include <openspace/util/updatestructures.h>
-#include <openspace/util/spicemanager.h>
-#include <openspace/scene/scenegraphnode.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
+#include <openspace/scene/scenegraphnode.h>
+#include <openspace/util/factorymanager.h>
+#include <openspace/util/spicemanager.h>
+#include <openspace/util/updatestructures.h>
 
-#include <ghoul/misc/dictionary.h>
 #include <ghoul/filesystem/filesystem.h>
-#include <ghoul/opengl/programobject.h>
 #include <ghoul/misc/assert.h>
+#include <ghoul/misc/dictionary.h>
+#include <ghoul/opengl/programobject.h>
 
 namespace {
-    const std::string _loggerCat = "Renderable";
-    const std::string keyStart = "StartTime";
-    const std::string keyEnd = "EndTime";
-    const std::string KeyType = "Type";
-}
+    const char* _loggerCat = "Renderable";
+    const char* keyStart = "StartTime";
+    const char* keyEnd = "EndTime";
+    const char* KeyType = "Type";
+    const char* KeyTag = "Tag";
+
+    static const openspace::properties::Property::PropertyInfo EnabledInfo = {
+        "Enabled",
+        "Is Enabled",
+        "This setting determines whether this object will be visible or not."
+    };
+} // namespace
 
 namespace openspace {
 
-Documentation Renderable::Documentation() {
+documentation::Documentation Renderable::Documentation() {
     using namespace openspace::documentation;
 
     return {
@@ -64,18 +72,23 @@ Documentation Renderable::Documentation() {
     };
 }
 
-Renderable* Renderable::createFromDictionary(const ghoul::Dictionary& dictionary) {
+std::unique_ptr<Renderable> Renderable::createFromDictionary(
+                                                      const ghoul::Dictionary& dictionary)
+{
     // The name is passed down from the SceneGraphNode
-    std::string name;
-    bool success = dictionary.getValue(SceneGraphNode::KeyName, name);
-    ghoul_assert(success, "The SceneGraphNode did not set the 'name' key");
+    ghoul_assert(
+        dictionary.hasKeyAndValue<std::string>(SceneGraphNode::KeyName),
+        "The SceneGraphNode did not set the 'name' key"
+    );
+    std::string name = dictionary.value<std::string>(SceneGraphNode::KeyName);
 
     documentation::testSpecificationAndThrow(Documentation(), dictionary, "Renderable");
 
     std::string renderableType = dictionary.value<std::string>(KeyType);
 
     auto factory = FactoryManager::ref().factory<Renderable>();
-    Renderable* result = factory->create(renderableType, dictionary);
+    ghoul_assert(factory, "Renderable factory did not exist");
+    std::unique_ptr<Renderable> result = factory->create(renderableType, dictionary);
     if (result == nullptr) {
         LERROR("Failed to create a Renderable object of type '" << renderableType << "'");
         return nullptr;
@@ -84,30 +97,38 @@ Renderable* Renderable::createFromDictionary(const ghoul::Dictionary& dictionary
     return result;
 }
 
-Renderable::Renderable()
-    : _enabled("enabled", "Is Enabled", true)
-    , _renderBin(RenderBin::Opaque)
-    , _startTime("")
-    , _endTime("")
-    , _hasTimeInterval(false)
-{}
-
 Renderable::Renderable(const ghoul::Dictionary& dictionary)
-    : _enabled("enabled", "Is Enabled", true)
+    : properties::PropertyOwner("renderable")
+    , _enabled(EnabledInfo, true)
     , _renderBin(RenderBin::Opaque)
     , _startTime("")
     , _endTime("")
     , _hasTimeInterval(false)
 {
-    setName("renderable");
-
     ghoul_assert(
         dictionary.hasKeyAndValue<std::string>(SceneGraphNode::KeyName),
-        "SceneGraphNode must specify '" << SceneGraphNode::KeyName << "'"
+        std::string("SceneGraphNode must specify '") + SceneGraphNode::KeyName + "'"
     );
 
     dictionary.getValue(keyStart, _startTime);
     dictionary.getValue(keyEnd, _endTime);
+
+    if (dictionary.hasKeyAndValue<std::string>(KeyTag)) {
+        std::string tagName = dictionary.value<std::string>(KeyTag);
+        if (!tagName.empty()) {
+            addTag(std::move(tagName));
+        }
+    } else if (dictionary.hasKeyAndValue<ghoul::Dictionary>(KeyTag)) {
+        ghoul::Dictionary tagNames = dictionary.value<ghoul::Dictionary>(KeyTag);
+        std::vector<std::string> keys = tagNames.keys();
+        std::string tagName;
+        for (const std::string& key : keys) {
+            tagName = tagNames.value<std::string>(key);
+            if (!tagName.empty()) {
+                addTag(std::move(tagName));
+            }
+        }
+    }
 
     if (_startTime != "" && _endTime != "") {
         _hasTimeInterval = true;
@@ -118,26 +139,32 @@ Renderable::Renderable(const ghoul::Dictionary& dictionary)
 
 Renderable::~Renderable() {}
 
-void Renderable::setBoundingSphere(PowerScaledScalar boundingSphere) {
-    boundingSphere_ = std::move(boundingSphere);
+void Renderable::setBoundingSphere(float boundingSphere) {
+    _boundingSphere = boundingSphere;
 }
 
-PowerScaledScalar Renderable::getBoundingSphere() {
-    return boundingSphere_;
+float Renderable::boundingSphere() const {
+    return _boundingSphere;
 }
 
 void Renderable::update(const UpdateData&) {}
 
-void Renderable::render(const RenderData& data, RendererTasks&) {
-    render(data);
+void Renderable::render(const RenderData& data, RendererTasks&) {}
+
+SurfacePositionHandle Renderable::calculateSurfacePositionHandle(
+                                                       const glm::dvec3& targetModelSpace)
+{
+    glm::dvec3 directionFromCenterToTarget = glm::normalize(targetModelSpace);
+    return {
+        directionFromCenterToTarget * static_cast<double>(boundingSphere()),
+        directionFromCenterToTarget,
+        0.0
+    };
 }
 
-void Renderable::render(const RenderData& data) {}
-
-void Renderable::setPscUniforms(
-    ghoul::opengl::ProgramObject& program, 
-    const Camera& camera,
-    const PowerScaledCoordinate& position) 
+void Renderable::setPscUniforms(ghoul::opengl::ProgramObject& program,
+                                const Camera& camera,
+                                const PowerScaledCoordinate& position)
 {
     program.setUniform("campos", camera.position().vec4());
     program.setUniform("objpos", position.vec4());
@@ -171,8 +198,9 @@ bool Renderable::getInterval(double& start, double& end) {
         end = SpiceManager::ref().ephemerisTimeFromDate(_endTime);
         return true;
     }
-    else
+    else {
         return false;
+    }
 }
 
 bool Renderable::isReady() const {
@@ -184,8 +212,8 @@ bool Renderable::isEnabled() const {
 }
 
 void Renderable::onEnabledChange(std::function<void(bool)> callback) {
-    _enabled.onChange([=] () {
-            callback(isEnabled());
+    _enabled.onChange([&] () {
+        callback(isEnabled());
     });
 }
 

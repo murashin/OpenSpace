@@ -40,6 +40,7 @@ guards for correctness. At the moment this includes:
    * The correct submodule is used
  * Checking for duplicates between all files
  * Checking that no file includes glm header directly
+ * Checking whether any files starts with the UTF-8 Byte-order mark
 
 If this script is executed from the base directory of OpenSpace, no arguments need to
 be passed, otherwise the first and only argument has to point to the base directory.
@@ -164,10 +165,23 @@ def check_copyright(lines):
 
     year = lines[index[0]][len(beginning_string) : len(beginning_string) + 4]
 
+    if lines[index[0] + 1][0] != ' ':
+        return 'Copyright header is not correctly indented'
+
     if year != current_year:
         return 'Out of date copyright notice ' + year + ' || ' + current_year
-    else:
-        return ''
+
+
+    return ''
+
+
+
+def check_byte_order_mark_character(lines):
+    c = lines[0][0]
+    if c == 'ï':
+        return 'File contains UTF-8 byte mark order character'
+
+    return ''
 
 
 
@@ -192,7 +206,7 @@ def check_naming_convention_subcomponent(lines, component, file):
     subcomponent_part = ifndef_symbol[2 + len(component) + 1 :]
     subcomponent_part = subcomponent_part[: subcomponent_part.find('_')]
 
-    path_part = file.split(os.sep)[2]
+    path_part = file.split(os.sep)[1]
 
     if path_part.upper() != subcomponent_part:
         return 'Subcomponent naming convention broken: ' + ifndef_symbol
@@ -217,7 +231,7 @@ def check_glm_header(lines, file):
     ]
 
     for f in Allowed_Files:
-        if f in file:
+        if f in file.replace('\\', '/'):
             return ''
 
     index = [i for i,s in enumerate(lines)
@@ -229,6 +243,8 @@ def check_glm_header(lines, file):
     else:
         return ''
 
+
+
 def check_core_dependency(lines, component):
     if component != "openspace_core":
         return ''
@@ -237,6 +253,24 @@ def check_core_dependency(lines, component):
 
     if len(index) > 0:
         return lines[index[0]][:-1]
+    else:
+        return ''
+
+
+
+def check_using_namespace(lines):
+    index = [i for i,s in enumerate(lines) if "using namespace" in s.strip()]
+
+    if len(index) > 0:
+        return lines[index[0]]
+    else:
+        return ''
+
+
+
+def check_end_of_line(lines):
+    if lines[-1][-1] != '\n':
+        return lines[-1][-1]
     else:
         return ''
 
@@ -286,6 +320,11 @@ def check_header_file(file, component):
             print(file, '\t', 'Naming convention broken', '\t', naming_subcomponent)
             return
 
+        end_of_line = check_end_of_line(lines)
+        if end_of_line:
+            print(file, '\t', 'Last line does not contain a newline character: ', end_of_line)
+            return
+
         duplicates, symbol = check_duplicates(lines, previousSymbols)
         if not duplicates:
             print(file, '\t', 'Duplicate include guard', symbol, 'first in', previousSymbols[symbol])
@@ -300,7 +339,52 @@ def check_header_file(file, component):
 
         core_dependency = check_core_dependency(lines, component)
         if core_dependency:
-            print(file, '\t' 'Wrong core dependency', core_dependency)
+            print(file, '\t', 'Wrong dependency (core depends on module)', core_dependency)
+
+        if (not 'ghoul_gl.h' in file):
+            # ghoul_gl.h is allowed to use 'using namespace' to pull the gl namespace in
+            using_namespaces = check_using_namespace(lines)
+            if using_namespaces:
+                print(file, '\t', 'Using namespace found in header file')
+
+        bom = check_byte_order_mark_character(lines)
+        if bom:
+            print(file, '\t', 'Byte order mark failed:', bom)
+
+
+
+def check_inline_file(file, component):
+    with open(file, 'r+') as f:
+        lines = f.readlines()
+
+        copyright = check_copyright(lines)
+        if copyright:
+            print(file, '\t', 'Copyright check failed', '\t', copyright)
+
+        header = check_glm_header(lines, file)
+        if header:
+            print(file, '\t', 'Illegal glm header include', header)
+
+        core_dependency = check_core_dependency(lines, component)
+        if core_dependency:
+            print(file, '\t', 'Wrong dependency (core depends on module)', core_dependency)
+
+        end_of_line = check_end_of_line(lines)
+        if end_of_line:
+            print(file, '\t', 'Last line does not contain a newline character: ', end_of_line)
+            return
+
+        bom = check_byte_order_mark_character(lines)
+        if bom:
+            print(file, '\t', 'Byte order mark failed:', bom)
+
+        if (not '_doc.inl' in file):
+            # The _doc.inl files are allowed to use using namespace as they are inclued
+            # from the cpp files and thus don't leak it
+            using_namespaces = check_using_namespace(lines)
+            if using_namespaces:
+                print(file, '\t', 'Using namespace found in inline file')
+
 
 
 def check_source_file(file, component):
@@ -310,11 +394,23 @@ def check_source_file(file, component):
         header = check_glm_header(lines, file)
         if header:
             print(file, '\t',  'Illegal glm header include', header)
-            return
 
         core_dependency = check_core_dependency(lines, component)
         if core_dependency:
             print(file, '\t' 'Wrong core dependency', core_dependency)
+
+        end_of_line = check_end_of_line(lines)
+        if end_of_line:
+            print(file, '\t', 'Last line does not contain a newline character: ', end_of_line)
+            return
+
+        copyright = check_copyright(lines)
+        if copyright:
+            print(file, '\t', 'Copyright check failed', '\t', copyright)
+
+        bom = check_byte_order_mark_character(lines)
+        if bom:
+            print(file, '\t', 'Byte order mark failed:', bom)
 
 
 
@@ -330,16 +426,32 @@ def check_files(positiveList, negativeList, component, check_function):
 
 
 
+
 basePath = './'
 if len(sys.argv) > 1:
     basePath = sys.argv[1] + '/'
 
+# Check header files
+print("Checking header files")
+print("=====================")
 check_files(basePath + 'include/**/*.h', '', 'openspace_core', check_header_file)
 check_files(basePath + 'apps/**/*.h', basePath + 'apps/**/ext/**/*.h', 'openspace_app', check_header_file)
 check_files(basePath + 'modules/**/*.h', basePath + 'modules/**/ext/**/*.h', 'openspace_module', check_header_file)
 check_files(basePath + 'ext/ghoul/include/**/*.h', '', 'ghoul', check_header_file)
+print("")
 
+print("Checking inline files")
+print("=====================")
+check_files(basePath + 'include/**/*.inl', '', 'openspace_core', check_inline_file)
+check_files(basePath + 'src/**/*.inl', '', 'openspace_core', check_inline_file)
+check_files(basePath + 'apps/**/*.inl', basePath + 'apps/**/ext/**/*.h', 'openspace_app', check_inline_file)
+check_files(basePath + 'modules/**/*.inl', basePath + 'modules/**/ext/**/*.h', 'openspace_module', check_inline_file)
+check_files(basePath + 'ext/ghoul/include/**/*.inl', '', 'ghoul', check_inline_file)
+print("")
+
+print("Checking source files")
+print("=====================")
 check_files(basePath + 'src/**/*.cpp', '', 'openspace_core', check_source_file)
 check_files(basePath + 'apps/**/*.cpp', basePath + 'apps/**/ext/**/*.cpp', 'openspace_app', check_source_file)
 check_files(basePath + 'modules/**/*.cpp', basePath + 'modules/**/ext/**/*.cpp', 'openspace_module', check_source_file)
-check_files(basePath + 'ext/ghoul/include/**/*.cpp', '', 'ghoul', check_source_file)
+check_files(basePath + 'ext/ghoul/src/**/*.cpp', '', 'ghoul', check_source_file)

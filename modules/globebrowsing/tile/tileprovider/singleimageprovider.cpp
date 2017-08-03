@@ -30,37 +30,44 @@
 
 namespace {
     const char* KeyFilePath = "FilePath";
-}
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+    static const openspace::properties::Property::PropertyInfo FilePathInfo = {
+        "FilePath",
+        "File Path",
+        "The file path that is used for this image provider. The file must point to an "
+        "image that is then loaded and used for all tiles."
+    };
+} // namespace
+
+namespace openspace::globebrowsing::tileprovider {
     
-SingleImageProvider::SingleImageProvider(const ghoul::Dictionary& dictionary) {
+SingleImageProvider::SingleImageProvider(const ghoul::Dictionary& dictionary)
+    : _tile(nullptr, nullptr, Tile::Status::Unavailable)
+    , _filePath(FilePathInfo)
+{
     // Required input
-    if (!dictionary.getValue<std::string>(KeyFilePath, _imagePath)) {
-        throw std::runtime_error(std::string("Must define key '") + KeyFilePath + "'");
-    }
+    std::string filePath;
+    dictionary.getValue<std::string>(KeyFilePath, filePath);
+    _filePath.setValue(filePath);
+
+    addProperty(_filePath);
 
     reset();
 }
 
 SingleImageProvider::SingleImageProvider(const std::string& imagePath)
-    : _imagePath(imagePath)
+    : _tile(nullptr, nullptr, Tile::Status::Unavailable)
+    , _filePath(FilePathInfo, imagePath)
 {
     reset();
 }
 
-Tile SingleImageProvider::getTile(const TileIndex& tileIndex) {
+Tile SingleImageProvider::getTile(const TileIndex&) {
     return _tile;
 }
 
-Tile SingleImageProvider::getDefaultTile() {
-    return _tile;
-}
-
-Tile::Status SingleImageProvider::getTileStatus(const TileIndex& index) {
-    return _tile.status;
+Tile::Status SingleImageProvider::getTileStatus(const TileIndex&) {
+    return _tile.status();
 }
 
 TileDepthTransform SingleImageProvider::depthTransform() {
@@ -75,19 +82,25 @@ void SingleImageProvider::update() {
 }
 
 void SingleImageProvider::reset() {
-    _tile = Tile();
-    _tile.texture = std::shared_ptr<Texture>(ghoul::io::TextureReader::ref().loadTexture(_imagePath).release());
-    _tile.status = _tile.texture != nullptr ? Tile::Status::OK : Tile::Status::IOError;
-    _tile.metaData = nullptr;
+    if (_filePath.value().empty()) {
+        return;
+    }
+    _tileTexture = ghoul::io::TextureReader::ref().loadTexture(_filePath);
+    Tile::Status tileStatus = _tileTexture ? Tile::Status::OK : Tile::Status::IOError;
 
-    _tile.texture->uploadTexture();
-    _tile.texture->setFilter(ghoul::opengl::Texture::FilterMode::Linear);
+    if (!_tileTexture) {
+        throw std::runtime_error(std::string("Unable to load texture '")
+            + _filePath.value() + "'");
+    }
+ 
+    _tileTexture->uploadTexture();
+    _tileTexture->setFilter(ghoul::opengl::Texture::FilterMode::AnisotropicMipMap);
+
+    _tile = Tile(_tileTexture.get(), nullptr, tileStatus);
 }
 
 int SingleImageProvider::maxLevel() {
     return 1337; // unlimited
 }
 
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::tileprovider

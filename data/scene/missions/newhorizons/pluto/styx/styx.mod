@@ -1,6 +1,8 @@
+local styx_radius = 0.75E4
+
 if UseAccurateNewHorizonsKernels then
     NewHorizonsKernels = {
-        "${SPICE}/nh_kernels/spk/NavSE_plu047_od122.bsp"
+        "${SPICE}/nh_20170126/spk/NavSE_plu047_od122.bsp"
     }
 else
     NewHorizonsKernels = {
@@ -17,9 +19,10 @@ return {
             Type = "RenderablePlanet",
             Frame = "IAU_PLUTO",
             Body = "STYX",
+            Radius = styx_radius,
             Geometry = {
                 Type = "SimpleSphere",
-                Radius = { 0.75 , 4 },
+                Radius = styx_radius,
                 Segments = 100
             },
             Textures = {
@@ -46,7 +49,7 @@ return {
         Parent = "Styx",
         Renderable = {
             Type = "RenderablePlane",
-            Size = {1.0, 6.3},
+            Size = 10^6.3,
             Origin = "Center",
             Billboard = true,
             Texture = "textures/Styx-Text.png",

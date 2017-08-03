@@ -26,19 +26,24 @@
 #define __OPENSPACE_MODULE_BASE___RENDERABLESPHERE___H__
 
 #include <openspace/rendering/renderable.h>
-#include <openspace/util/updatestructures.h>
 
 #include <openspace/properties/stringproperty.h>
 #include <openspace/properties/optionproperty.h>
 #include <openspace/properties/scalar/intproperty.h>
 #include <openspace/properties/scalar/floatproperty.h>
-#include <openspace/properties/vector/vec2property.h>
-#include <ghoul/opengl/programobject.h>
-#include <ghoul/opengl/texture.h>
+
+namespace ghoul::opengl {
+    class ProgramObject;
+    class Texture;
+} // namespace ghoul::opengl
 
 namespace openspace {
 
 class PowerScaledSphere;
+struct RenderData;
+struct UpdateData;
+
+namespace documentation { struct Documentation; }
 
 class RenderableSphere : public Renderable {
 public:
@@ -49,8 +54,10 @@ public:
 
     bool isReady() const override;
 
-    void render(const RenderData& data) override;
+    void render(const RenderData& data, RendererTasks& rendererTask) override;
     void update(const UpdateData& data) override;
+
+    static documentation::Documentation Documentation();
 
 private:
     void loadTexture();
@@ -58,7 +65,7 @@ private:
     properties::StringProperty _texturePath;
     properties::OptionProperty _orientation;
 
-    properties::Vec2Property _size;
+    properties::FloatProperty _size;
     properties::IntProperty _segments;
 
     properties::FloatProperty _transparency;
@@ -66,7 +73,7 @@ private:
     std::unique_ptr<ghoul::opengl::ProgramObject> _shader;
     std::unique_ptr<ghoul::opengl::Texture> _texture;
 
-    PowerScaledSphere* _sphere;
+    std::unique_ptr<PowerScaledSphere> _sphere;
 
     bool _sphereIsDirty;
 };

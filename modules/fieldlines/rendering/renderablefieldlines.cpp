@@ -28,10 +28,12 @@
 #include <openspace/util/powerscaledcoordinate.h>
 #include <modules/kameleon/include/kameleonwrapper.h>
 #include <openspace/scene/scenegraphnode.h>
+#include <openspace/util/updatestructures.h>
 
 #include <ghoul/filesystem/filesystem.h>
 #include <ghoul/filesystem/file.h>
 #include <ghoul/misc/assert.h>
+#include <ghoul/opengl/programobject.h>
 
 #include <fstream>
 
@@ -68,23 +70,52 @@ namespace {
 
     const int SeedPointSourceFile = 0;
     const int SeedPointSourceTable = 1;
-}
+
+    static const openspace::properties::Property::PropertyInfo StepSizeInfo = {
+        "StepSize",
+        "Fieldline Step Size",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo Classification = {
+        "Classification",
+        "Fieldline Classification",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo FieldlineColorInfo = {
+        "FieldlineColor",
+        "Fieldline Color",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo SeedPointSourceInfo = {
+        "Source",
+        "SeedPoint Source",
+        "" // @TODO Missing documentation
+    };
+
+    static const openspace::properties::Property::PropertyInfo SeedPointFileInfo = {
+        "SourceFile",
+        "SeedPoint File",
+        "" // @TODO Missing documentation
+    };
+} // namespace
 
 namespace openspace {
 
 RenderableFieldlines::RenderableFieldlines(const ghoul::Dictionary& dictionary) 
     : Renderable(dictionary)
-    , _stepSize("stepSize", "Fieldline Step Size", defaultFieldlineStepSize, 0.f, 10.f)
-    , _classification("classification", "Fieldline Classification", true)
+    , _stepSize(StepSizeInfo, defaultFieldlineStepSize, 0.f, 10.f)
+    , _classification(Classification, true)
     , _fieldlineColor(
-        "fieldlineColor",
-        "Fieldline Color",
+        FieldlineColorInfo,
         defaultFieldlineColor,
         glm::vec4(0.f),
         glm::vec4(1.f)
       )
-    , _seedPointSource("source", "SeedPoint Source")
-    , _seedPointSourceFile("sourceFile", "SeedPoint File")
+    , _seedPointSource(SeedPointSourceInfo)
+    , _seedPointSourceFile(SeedPointFileInfo)
     , _program(nullptr)
     , _seedPointsAreDirty(true)
     , _fieldLinesAreDirty(true)
@@ -121,7 +152,7 @@ RenderableFieldlines::RenderableFieldlines(const ghoul::Dictionary& dictionary)
     }
 
     // @TODO a non-magic number perhaps ---abock
-    setBoundingSphere(PowerScaledScalar::CreatePSS(250.f*6371000.f));
+    setBoundingSphere(250.f*6371000.f);
 
     _seedPointSource.addOption(SeedPointSourceFile, "File");
     _seedPointSource.addOption(SeedPointSourceTable, "Lua Table");
@@ -237,7 +268,7 @@ bool RenderableFieldlines::deinitialize() {
     return true;
 }
 
-void RenderableFieldlines::render(const RenderData& data) {
+void RenderableFieldlines::render(const RenderData& data, RendererTasks&) {
     _program->activate();
     _program->setUniform("modelViewProjection", data.camera.viewProjectionMatrix());
     _program->setUniform("modelTransform", glm::mat4(1.0));
@@ -323,7 +354,7 @@ void RenderableFieldlines::loadSeedPoints() {
             loadSeedPointsFromTable();
             break;
         default:
-            ghoul_assert(false, "Missing case label");
+            throw ghoul::MissingCaseException();
     }
 }
 

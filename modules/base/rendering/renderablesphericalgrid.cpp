@@ -27,23 +27,24 @@
 #include <openspace/engine/configurationmanager.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/util/spicemanager.h>
+#include <openspace/util/updatestructures.h>
+#include <ghoul/glm.h>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
 
 namespace {
-    static const std::string _loggerCat = "RenderableSphericalGrid";
+    static const char* _loggerCat = "RenderableSphericalGrid";
     const char* KeyGridType = "GridType";
     const char* KeyGridColor = "GridColor";
     const char* KeyGridMatrix = "GridMatrix";
     const char* KeyGridSegments = "GridSegments";
     const char* KeyGridRadius = "GridRadius";
     const char* KeyGridParentsRotation = "ParentsRotation";
-}
-namespace openspace {
+    const glm::vec2 GridRadius = { 1.f, 20.f };
+} // namespace
 
-// needs to be set from dictionary - REMEMBER
-const PowerScaledScalar radius = PowerScaledScalar(1.f, 20.f);
+namespace openspace {
 
 RenderableSphericalGrid::RenderableSphericalGrid(const ghoul::Dictionary& dictionary)  
     : Renderable(dictionary)
@@ -62,7 +63,8 @@ RenderableSphericalGrid::RenderableSphericalGrid(const ghoul::Dictionary& dictio
         staticGrid = dictionary.getValue(KeyGridParentsRotation, _parentsRotation);
     }
     
-    dictionary.getValue(KeyGridSegments, _segments);
+    _segments = static_cast<int>(dictionary.value<double>(KeyGridSegments));
+    //dictionary.getValue(KeyGridSegments, _segments);
 
 
     /*glm::vec2 radius;
@@ -78,14 +80,14 @@ RenderableSphericalGrid::RenderableSphericalGrid(const ghoul::Dictionary& dictio
 
     int nr = 0;
     const float fsegments = static_cast<float>(_segments);
-    const float r = static_cast<float>(radius[0]);
+    const float r = static_cast<float>(GridRadius[0]);
 
     //int nr2 = 0;
 
-    for (int i = 0; i <= _segments; i++) {
+    for (int nSegment = 0; nSegment <= _segments; ++nSegment) {
         // define an extra vertex around the y-axis due to texture mapping
         for (int j = 0; j <= _segments; j++) {
-            const float fi = static_cast<float>(i);
+            const float fi = static_cast<float>(nSegment);
             const float fj = static_cast<float>(j);
 
             // inclination angle (north to south)
@@ -117,7 +119,7 @@ RenderableSphericalGrid::RenderableSphericalGrid(const ghoul::Dictionary& dictio
                 _varray[nr].location[i]  = tmp[i];
                 _varray[nr].normal[i] = normal[i];
             }
-            _varray[nr].location[3] = static_cast<GLfloat>(radius[1]);            
+            _varray[nr].location[3] = static_cast<GLfloat>(GridRadius[1]);
             ++nr;
         }
     }
@@ -195,7 +197,7 @@ bool RenderableSphericalGrid::initialize(){
     return completeSuccess;
 }
 
-void RenderableSphericalGrid::render(const RenderData& data){
+void RenderableSphericalGrid::render(const RenderData& data, RendererTasks&){
     _gridProgram->activate();
 
     glm::mat4 transform;
@@ -229,7 +231,8 @@ void RenderableSphericalGrid::render(const RenderData& data){
 }
 
 void RenderableSphericalGrid::update(const UpdateData& data) {
-    _parentMatrix = SpiceManager::ref().positionTransformMatrix("IAU_JUPITER", "GALACTIC", data.time);
+    _parentMatrix = SpiceManager::ref().positionTransformMatrix("IAU_JUPITER", "GALACTIC", data.time.j2000Seconds());
 
 }
-}
+
+} // namespace openspace

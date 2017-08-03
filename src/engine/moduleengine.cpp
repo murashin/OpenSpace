@@ -25,6 +25,7 @@
 #include <openspace/engine/moduleengine.h>
 
 #include <openspace/moduleregistration.h>
+#include <openspace/scripting/lualibrary.h>
 #include <openspace/util/openspacemodule.h>
 
 #include <ghoul/logging/logmanager.h>
@@ -34,8 +35,8 @@
 #include "moduleengine_lua.inl"
 
 namespace {
-    const std::string _loggerCat = "ModuleEngine";
-}
+    const char* _loggerCat = "ModuleEngine";
+} // namespace
 
 namespace openspace {
 
@@ -67,7 +68,8 @@ void ModuleEngine::registerModule(std::unique_ptr<OpenSpaceModule> module) {
     );
     if (it != _modules.end()) {
         throw ghoul::RuntimeError(
-            "Module name '" + module->name() + "' was registered before", "ModuleEngine"
+            "Module name '" + module->name() + "' was registered before",
+            "ModuleEngine"
         );
     }
     
@@ -79,19 +81,16 @@ void ModuleEngine::registerModule(std::unique_ptr<OpenSpaceModule> module) {
 
 std::vector<OpenSpaceModule*> ModuleEngine::modules() const {
     std::vector<OpenSpaceModule*> result;
-    for (auto& m : _modules) {
+    for (const std::unique_ptr<OpenSpaceModule>& m : _modules) {
         result.push_back(m.get());
     }
     return result;
 }
 
-ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Version
-ModuleEngine::requiredOpenGLVersion() const
-{
-    using Version = ghoul::systemcapabilities::OpenGLCapabilitiesComponent::Version;
-    Version version = { 0,0 };
+ghoul::systemcapabilities::Version ModuleEngine::requiredOpenGLVersion() const {
+    ghoul::systemcapabilities::Version version = { 0, 0, 0 };
 
-    for (const auto& m : _modules) {
+    for (const std::unique_ptr<OpenSpaceModule>& m : _modules) {
         version = std::max(version, m->requiredOpenGLVersion());
     }
 
@@ -109,7 +108,6 @@ scripting::LuaLibrary ModuleEngine::luaLibrary() {
                 "Checks whether a specific module is loaded"
             }
         }
-
     };
 }
 

@@ -25,18 +25,19 @@
 #ifndef __OPENSPACE_MODULE_GLOBEBROWSING___TEXT_TILE_PROVIDER___H__
 #define __OPENSPACE_MODULE_GLOBEBROWSING___TEXT_TILE_PROVIDER___H__
 
+#include <modules/globebrowsing/globebrowsingmodule.h>
 #include <modules/globebrowsing/tile/tileprovider/tileprovider.h>
+#include <modules/globebrowsing/cache/lrucache.h>
+#include <modules/globebrowsing/tile/tiletextureinitdata.h>
 
 #include <ghoul/opengl/ghoul_gl.h>
 
-namespace ghoul { namespace fontrendering {
-class Font;
-class FontRenderer;
-}}
+namespace ghoul::fontrendering {
+    class Font;
+    class FontRenderer;
+} // namespace ghoul::fontrendering
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+namespace openspace::globebrowsing::tileprovider {
 
 /**
  * Enables a simple way of providing tiles with any type of rendered text. 
@@ -49,23 +50,16 @@ public:
     /**
      * Default constructor with default values for texture and font size
      */
-    TextTileProvider(const glm::uvec2& textureSize = {512, 512}, size_t fontSize = 48);
-    virtual ~TextTileProvider();
+    TextTileProvider(const TileTextureInitData& initData, size_t fontSize = 48);
+    virtual ~TextTileProvider() override;
 
     // The TileProvider interface below is implemented in this class
-    virtual Tile getTile(const TileIndex& tileIndex);
-    virtual Tile getDefaultTile();
-    virtual Tile::Status getTileStatus(const TileIndex& index);
-    virtual TileDepthTransform depthTransform();
-    virtual void update();
-    virtual void reset();
-    virtual int maxLevel();
-
-    /**
-     * Returns the tile which will be used to draw text onto. 
-     * Default implementation returns a tile with a plain transparent texture.
-     */
-    virtual Tile backgroundTile(const TileIndex& tileIndex) const;
+    virtual Tile getTile(const TileIndex& tileIndex) override;
+    virtual Tile::Status getTileStatus(const TileIndex& index) override;
+    virtual TileDepthTransform depthTransform() override;
+    virtual void update() override;
+    virtual void reset() override;
+    virtual int maxLevel() override;
 
     /**
      * Allow overriding of hash function. 
@@ -87,20 +81,20 @@ public:
         const TileIndex& tileIndex) const = 0;
 
 protected:
+    const TileTextureInitData _initData;
     std::shared_ptr<ghoul::fontrendering::Font> _font;
-    glm::uvec2 _textureSize;
     size_t _fontSize;
 
 private:
-    Tile createChunkIndexTile(const TileIndex& tileIndex);
+    Tile
+        createChunkIndexTile(const TileIndex& tileIndex);
     std::unique_ptr<ghoul::fontrendering::FontRenderer> _fontRenderer;
-
-    TileCache _tileCache;
+    
     GLuint _fbo;
+  
+    cache::MemoryAwareTileCache* _tileCache;
 };
 
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::tileprovider
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___TEXT_TILE_PROVIDER___H__

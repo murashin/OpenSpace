@@ -25,51 +25,54 @@
 #ifndef __OPENSPACE_CORE___LUACONSOLE___H__
 #define __OPENSPACE_CORE___LUACONSOLE___H__
 
-#include <openspace/scripting/scriptengine.h>
 #include <openspace/network/parallelconnection.h>
-
+#include <openspace/properties/propertyowner.h>
+#include <openspace/properties/scalar/boolproperty.h>
+#include <openspace/properties/vector/vec4property.h>
+#include <openspace/scripting/scriptengine.h>
 #include <openspace/util/keys.h>
 
 #include <string>
 #include <vector>
 
+namespace ghoul::opengl { class ProgramObject; }
+
 namespace openspace {
 
-class LuaConsole {
+class LuaConsole : public properties::PropertyOwner {
 public:
     LuaConsole();
 
     void initialize();
     void deinitialize();
 
-    void keyboardCallback(Key key, KeyModifier modifier, KeyAction action);
+    bool keyboardCallback(Key key, KeyModifier modifier, KeyAction action);
     void charCallback(unsigned int codepoint, KeyModifier modifier);
 
+    void update();
     void render();
-
-    Key commandInputButton();
-
-    bool isVisible() const;
-    void setVisible(bool visible);
-    bool isRemoteScripting() const;
-    void setRemoteScripting(bool remoteScripting);
-
-    void toggleMode();
-        
-    static scripting::LuaLibrary luaLibrary();
-
+    float currentHeight() const;
 
 private:
     void parallelConnectionChanged(const ParallelConnection::Status& status);
     void addToCommand(std::string c);
-    std::string UnicodeToUTF8(unsigned int codepoint);
+    std::string sanitizeInput(std::string str);
 
+    properties::BoolProperty _isVisible;
+    properties::BoolProperty _remoteScripting;
+
+    properties::Vec4Property _backgroundColor;
+    properties::Vec4Property _highlightColor;
+    properties::Vec4Property _separatorColor;
+    properties::Vec4Property _entryTextColor;
+    properties::Vec4Property _historyTextColor;
+    properties::IntProperty _historyLength;
+
+    
     size_t _inputPosition;
     std::vector<std::string> _commandsHistory;
     size_t _activeCommand;
     std::vector<std::string> _commands;
-
-    std::string _filename;
 
     struct {
         int lastIndex;
@@ -77,8 +80,16 @@ private:
         std::string initialValue;
     } _autoCompleteInfo;
 
-    bool _isVisible;
-    bool _remoteScripting;
+    float _currentHeight;
+    float _targetHeight;
+    float _fullHeight;
+
+    std::shared_ptr<ghoul::fontrendering::Font> _font;
+    std::shared_ptr<ghoul::fontrendering::Font> _historyFont;
+
+    std::unique_ptr<ghoul::opengl::ProgramObject> _program;
+    GLuint _vao;
+    GLuint _vbo;
 };
 
 } // namespace openspace

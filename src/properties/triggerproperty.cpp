@@ -24,26 +24,23 @@
 
 #include <openspace/properties/triggerproperty.h>
 
-namespace openspace {
-namespace properties {
+namespace openspace::properties {
 
-TriggerProperty::TriggerProperty(std::string identifier, std::string guiName,
-                                 Property::Visibility visibility)
-    : Property(std::move(identifier), std::move(guiName), visibility)
+TriggerProperty::TriggerProperty(PropertyInfo info)
+    : Property(std::move(info))
 {}
 
 std::string TriggerProperty::className() const {
     return "TriggerProperty";
 }
 
-bool TriggerProperty::setLuaValue(lua_State* state) {
+bool TriggerProperty::setLuaValue(lua_State*) {
     notifyListener();
     return true;
 }
 
-void TriggerProperty::set(ghoul::any value) {
+void TriggerProperty::set(ghoul::any) {
     notifyListener();
 }
 
-} // namespace properties
-} // namespace openspace
+} // namespace openspace::properties

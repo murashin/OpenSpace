@@ -27,16 +27,21 @@
 
 #include <openspace/properties/propertyowner.h>
 
-#include <openspace/documentation/documentation.h>
+#include <memory>
 
-namespace openspace {
-class Renderable;
+namespace ghoul { class Dictionary; }
 
-namespace planetgeometry {
+namespace openspace { class Renderable; }
+
+namespace openspace::documentation { struct Documentation; }
+
+namespace openspace::planetgeometry {
 
 class PlanetGeometry : public properties::PropertyOwner {
 public:
-    static PlanetGeometry* createFromDictionary(const ghoul::Dictionary& dictionary);
+    static std::unique_ptr<PlanetGeometry> createFromDictionary(
+        const ghoul::Dictionary& dictionary
+    );
 
     PlanetGeometry();
     virtual ~PlanetGeometry();
@@ -44,13 +49,12 @@ public:
     virtual void deinitialize();
     virtual void render() = 0;
 
-    static openspace::Documentation Documentation();
+    static documentation::Documentation Documentation();
 
 protected:
     Renderable* _parent;
 };
 
-}  // namespace planetgeometry
-}  // namespace openspace
+}  // namespace openspace::planetgeometry
 
 #endif // __OPENSPACE_MODULE_SPACE___PLANETGEOMETRY___H__

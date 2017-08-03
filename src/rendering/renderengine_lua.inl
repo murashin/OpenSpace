@@ -22,30 +22,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                                         *
  ****************************************************************************************/
 
-namespace openspace {
-
-namespace luascriptfunctions {
-
-/**
-    * \ingroup LuaScripts
-    * takeScreenshot():
-    * Save the rendering to an image file
-    */
-int takeScreenshot(lua_State* L) {
-    int nArguments = lua_gettop(L);
-    if (nArguments == 0) {
-        OsEng.renderEngine().takeScreenshot();
-        return 0;
-    }
-    else if (nArguments == 1) {
-        bool b = lua_toboolean(L, -1) != 0;
-        OsEng.renderEngine().takeScreenshot(b);
-        return 0;
-    }
-    else {
-        return luaL_error(L, "Expected %i or %i arguments, got %i", 0, 1, nArguments);
-    }
-}
+namespace openspace::luascriptfunctions {
 
 /**
 * \ingroup LuaScripts
@@ -64,44 +41,6 @@ int setRenderer(lua_State* L) {
     }
     std::string r = lua_tostring(L, -1);
     OsEng.renderEngine().setRendererFromString(r);
-    return 0;
-}
-
-/**
-* \ingroup LuaScripts
-* setNAaSamples(int):
-* set the number of anti-aliasing samples (msaa)
-*/
-int setNAaSamples(lua_State* L) {
-    int nArguments = lua_gettop(L);
-    if (nArguments != 1) {
-        return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
-    }
-
-    double t = luaL_checknumber(L, -1);
-
-    OsEng.renderEngine().setNAaSamples(static_cast<int>(t));
-    return 0;
-}
-
-
-/**
-* \ingroup LuaScripts
-* visualizeABuffer(bool):
-* Toggle heads-up info display on master node
-*/
-int showRenderInformation(lua_State* L) {
-    int nArguments = lua_gettop(L);
-    if (nArguments != 1) {
-        return luaL_error(L, "Expected %i arguments, got %i", 1, nArguments);
-    }
-
-    const int type = lua_type(L, -1);
-    if (type != LUA_TBOOLEAN) {
-        return luaL_error(L, "Expected argument of type 'bool'");
-    }
-    bool b = lua_toboolean(L, -1) != 0;
-    OsEng.renderEngine().toggleInfoText(b);
     return 0;
 }
 
@@ -202,6 +141,4 @@ int unregisterScreenSpaceRenderable(lua_State* L) {
     return 1;
 }
 
-} // namespace luascriptfunctions
-
-}// namespace openspace
+}// namespace openspace::luascriptfunctions

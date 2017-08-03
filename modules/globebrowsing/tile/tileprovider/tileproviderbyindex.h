@@ -27,23 +27,20 @@
 
 #include <modules/globebrowsing/tile/tileprovider/tileprovider.h>
 
-namespace openspace {
-namespace globebrowsing {
-namespace tileprovider {
+namespace openspace::globebrowsing::tileprovider {
 
 class TileProviderByIndex : public TileProvider {
 public:
     TileProviderByIndex(const ghoul::Dictionary& dictionary);
     TileProviderByIndex(const std::string& imagePath);
-    virtual ~TileProviderByIndex() { }
+    virtual ~TileProviderByIndex() = default;
 
-    virtual Tile getTile(const TileIndex& tileIndex);
-    virtual Tile getDefaultTile();
-    virtual Tile::Status getTileStatus(const TileIndex& index);
-    virtual TileDepthTransform depthTransform();
-    virtual void update();
-    virtual void reset();
-    virtual int maxLevel();
+    virtual Tile getTile(const TileIndex& tileIndex) override;
+    virtual Tile::Status getTileStatus(const TileIndex& index) override;
+    virtual TileDepthTransform depthTransform() override;
+    virtual void update() override;
+    virtual void reset() override;
+    virtual int maxLevel() override;
 
 private:
     TileProvider* indexProvider(const TileIndex& tileIndex) const;
@@ -52,8 +49,6 @@ private:
     std::shared_ptr<TileProvider> _defaultTileProvider;
 };
 
-} // namespace tileprovider
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::tileprovider
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___TILE_PROVIDER_BY_INDEX___H__

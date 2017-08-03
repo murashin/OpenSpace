@@ -25,23 +25,23 @@
 #include <modules/onscreengui/include/guiorigincomponent.h>
 
 #include <openspace/engine/openspaceengine.h>
-#include <openspace/interaction/interactionhandler.h>
+#include <openspace/interaction/navigationhandler.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/scene/scenegraphnode.h>
+#include <openspace/scene/scene.h>
 
 #include <ghoul/misc/assert.h>
 
 #include "imgui.h"
 
-namespace openspace {
-namespace gui {
+namespace openspace::gui {
 
 GuiOriginComponent::GuiOriginComponent()
     : GuiComponent("Origin")
 {}
 
 void GuiOriginComponent::render() {
-    SceneGraphNode* currentFocus = OsEng.interactionHandler().focusNode();
+    SceneGraphNode* currentFocus = OsEng.navigationHandler().focusNode();
 
     std::vector<SceneGraphNode*> nodes =
         OsEng.renderEngine().scene()->allSceneGraphNodes();
@@ -59,18 +59,21 @@ void GuiOriginComponent::render() {
     }
 
     auto iCurrentFocus = std::find(nodes.begin(), nodes.end(), currentFocus);
-    ghoul_assert(iCurrentFocus != nodes.end(), "Focus node not found");
+    if (!nodes.empty()) {
+        // Only check if we found the current focus node if we have any nodes at all
+        // only then it would be a real error
+        ghoul_assert(iCurrentFocus != nodes.end(), "Focus node not found");
+    }
     int currentPosition = static_cast<int>(std::distance(iCurrentFocus, nodes.begin()));
 
     bool hasChanged = ImGui::Combo("Origin", &currentPosition, nodeNames.c_str());
     if (hasChanged) {
         OsEng.scriptEngine().queueScript(
-            "openspace.setPropertyValue('Interaction.origin', '" +
+            "openspace.setPropertyValue('NavigationHandler.origin', '" +
             nodes[currentPosition]->name() + "');",
             scripting::ScriptEngine::RemoteScripting::Yes
         );
     }
 }
 
-} // gui
-} // openspace
+} // namespace openspace::gui

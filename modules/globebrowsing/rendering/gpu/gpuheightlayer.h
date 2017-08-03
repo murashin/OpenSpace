@@ -31,12 +31,9 @@
 #include <openspace/util/gpudata.h>
 #include <string>
 
-namespace ghoul { namespace opengl {
-class ProgramObject;
-}}
+namespace ghoul::opengl { class ProgramObject; }
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 class Layer;
 struct TileIndex;
@@ -48,27 +45,28 @@ struct TileIndex;
 class GPUHeightLayer : public GPULayer {
 public:
 
+    virtual ~GPUHeightLayer() override = default;
+
     /**
      * Sets the value of <code>Layer</code> to its corresponding
      * GPU struct. OBS! Users must ensure bind has been 
      * called before setting using this method.
      */
-    virtual void setValue(ProgramObject* programObject, const Layer& layer,
-                          const TileIndex& tileIndex, int pileSize);
+    virtual void setValue(ghoul::opengl::ProgramObject* programObject, const Layer& layer,
+        const TileIndex& tileIndex, int pileSize) override;
 
     /** 
      * Binds this object with GLSL variables with identifiers starting 
      * with nameBase within the provided shader program.
      * After this method has been called, users may invoke setValue.
      */
-    virtual void bind(ProgramObject* programObject, const Layer& layer,
-                      const std::string& nameBase, int pileSize);
+    virtual void bind(ghoul::opengl::ProgramObject* programObject, const Layer& layer,
+        const std::string& nameBase, int pileSize) override;
 
 private:
-    GPUTileDepthTransform gpuDepthTransform;
+    GPUTileDepthTransform _gpuDepthTransform;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___GPUHEIGHTLAYER___H__

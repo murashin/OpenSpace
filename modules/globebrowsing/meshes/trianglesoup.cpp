@@ -27,20 +27,19 @@
 #include <ghoul/logging/logmanager.h>
 
 namespace {
-    const std::string _loggerCat = "TriangleSoup";
+    const char* _loggerCat = "TriangleSoup";
 }
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 TriangleSoup::TriangleSoup(std::vector<unsigned int> elements, Positions usePositions,
                            TextureCoordinates useTextures, Normals useNormals)
-    : _vaoID(0)
-    , _vertexBufferID(0)
-    , _elementBufferID(0)
-    , _useVertexPositions(usePositions)
+    : _useVertexPositions(usePositions)
     , _useTextureCoordinates(useTextures)
     , _useVertexNormals(useNormals)
+    , _vaoID(0)
+    , _vertexBufferID(0)
+    , _elementBufferID(0)
 {
     setElements(elements);
 }
@@ -166,9 +165,13 @@ void TriangleSoup::drawUsingActiveProgram() {
     }
     glBindVertexArray(_vaoID);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _elementBufferID);
-    glDrawElements(GL_TRIANGLES, _elementData.size(), GL_UNSIGNED_INT, 0);
+    glDrawElements(
+        GL_TRIANGLES,
+        static_cast<GLsizei>(_elementData.size()),
+        GL_UNSIGNED_INT,
+        nullptr
+    );
     glBindVertexArray(0);
 }
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing

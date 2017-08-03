@@ -30,12 +30,9 @@
 
 #include <string>
 
-namespace ghoul { namespace opengl {
-class ProgramObject;
-}}
+namespace ghoul::opengl { class ProgramObject; }
 
-namespace openspace {
-namespace globebrowsing {
+namespace openspace::globebrowsing {
 
 class LayerManager;
 
@@ -44,20 +41,23 @@ class LayerManager;
  */
 class GPULayerManager {
 public:
+    virtual ~GPULayerManager() = default;
+
     /**
      * Sets the value of <code>LayerGroup</code> to its corresponding
      * GPU struct. OBS! Users must ensure bind has been 
      * called before setting using this method.
      */
-    virtual void setValue(ProgramObject* programObject, const LayerManager& layerManager,
-                          const TileIndex& tileIndex);
+    virtual void setValue(ghoul::opengl::ProgramObject* programObject,
+        const LayerManager& layerManager, const TileIndex& tileIndex);
 
     /** 
      * Binds this object with GLSL variables with identifiers starting 
      * with nameBase within the provided shader program.
      * After this method has been called, users may invoke setValue.
      */
-    virtual void bind(ProgramObject* programObject, const LayerManager& layerManager);
+    virtual void bind(ghoul::opengl::ProgramObject* programObject,
+        const LayerManager& layerManager);
 
     /**
     * Deactivates any <code>TextureUnit</code>s assigned by this object.
@@ -66,10 +66,9 @@ public:
     virtual void deactivate();
 
 private:
-    std::vector<std::unique_ptr<GPULayerGroup>> gpuLayerGroups;
+    std::vector<std::unique_ptr<GPULayerGroup>> _gpuLayerGroups;
 };
 
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___GPULAYERMANAGER___H__

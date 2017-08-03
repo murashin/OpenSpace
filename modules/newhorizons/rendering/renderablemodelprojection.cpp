@@ -26,10 +26,12 @@
 
 #include <modules/base/rendering/modelgeometry.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/documentation/verifier.h>
 #include <openspace/engine/openspaceengine.h>
 #include <openspace/rendering/renderengine.h>
 #include <openspace/scene/scenegraphnode.h>
+#include <openspace/scene/scene.h>
 #include <openspace/util/spicemanager.h>
 #include <openspace/util/time.h>
 #include <openspace/util/updatestructures.h>
@@ -41,7 +43,7 @@
 #include <ghoul/opengl/textureunit.h>
 
 namespace {
-    const std::string _loggerCat = "RenderableModelProjection";
+    const char* _loggerCat = "RenderableModelProjection";
     const char* keySource = "Rotation.Source";
     const char* keyDestination = "Rotation.Destination";
     const char* keyGeometry = "Geometry";
@@ -51,11 +53,26 @@ namespace {
     const char* keyTextureColor = "Textures.Color";
 
     const char* _destination = "GALACTIC";
-}
+
+    static const openspace::properties::Property::PropertyInfo ColorTextureInfo = {
+        "ColorTexture",
+        "Color Base Texture",
+        "This is the path to a local image file that is used as the base texture for "
+        "the model on which the image projections are layered."
+    };
+
+    static const openspace::properties::Property::PropertyInfo PerformShadingInfo = {
+        "PerformShading",
+        "Perform Shading",
+        "If this value is enabled, the model will be shaded based on the relative "
+        "location to the Sun. If this value is disabled, shading is disabled and the "
+        "entire model is rendered brightly."
+    };
+} // namespace
 
 namespace openspace {
 
-Documentation RenderableModelProjection::Documentation() {
+documentation::Documentation RenderableModelProjection::Documentation() {
     using namespace documentation;
 
     return {
@@ -81,11 +98,16 @@ Documentation RenderableModelProjection::Documentation() {
                 Optional::No
             },
             {
-                keyTextureColor,
+                keyTextureColor, // @TODO Change to ColorTextureInfo.identifier
                 new StringVerifier,
-                "The base texture for the model that is shown before any projection "
-                "occurred.",
+                ColorTextureInfo.description,
                 Optional::No
+            },
+            {
+                PerformShadingInfo.identifier,
+                new BoolVerifier,
+                PerformShadingInfo.description,
+                Optional::Yes
             },
             {
                 keyBoundingSphereRadius,
@@ -102,13 +124,13 @@ Documentation RenderableModelProjection::Documentation() {
 
 RenderableModelProjection::RenderableModelProjection(const ghoul::Dictionary& dictionary)
     : Renderable(dictionary)
-    , _colorTexturePath("colorTexture", "Color Texture")
-    , _rotation("rotation", "Rotation", glm::vec3(0.f), glm::vec3(0.f), glm::vec3(360.f))
+    , _colorTexturePath(ColorTextureInfo)
+    , _rotation({ "Rotation", "Rotation", "" }, glm::vec3(0.f), glm::vec3(0.f), glm::vec3(360.f)) // @TODO Remove this property
     , _programObject(nullptr)
     , _fboProgramObject(nullptr)
     , _baseTexture(nullptr)
     , _geometry(nullptr)
-    , _performShading("performShading", "Perform Shading", true)
+    , _performShading(PerformShadingInfo, true)
 {
     documentation::testSpecificationAndThrow(
         Documentation(),
@@ -117,7 +139,7 @@ RenderableModelProjection::RenderableModelProjection(const ghoul::Dictionary& di
     );
 
     std::string name;
-    bool success = dictionary.getValue(SceneGraphNode::KeyName, name);
+    [[ maybe_unused ]] bool success = dictionary.getValue(SceneGraphNode::KeyName, name);
     ghoul_assert(success, "Name was not passed to RenderableModelProjection");
 
     using ghoul::Dictionary;
@@ -142,7 +164,11 @@ RenderableModelProjection::RenderableModelProjection(const ghoul::Dictionary& di
     
     float boundingSphereRadius = 1.0e9;
     dictionary.getValue(keyBoundingSphereRadius, boundingSphereRadius);
-    setBoundingSphere(PowerScaledScalar::CreatePSS(boundingSphereRadius));
+    setBoundingSphere(boundingSphereRadius);
+
+    if (dictionary.hasKey(PerformShadingInfo.identifier)) {
+        _performShading = dictionary.value<bool>(PerformShadingInfo.identifier);
+    }
 
     Renderable::addProperty(_performShading);
     Renderable::addProperty(_rotation);
@@ -186,7 +212,7 @@ bool RenderableModelProjection::initialize() {
     completeSuccess &= loadTextures();
     completeSuccess &= _projectionComponent.initializeGL();
 
-    auto bs = getBoundingSphere();
+    float bs = boundingSphere();
     completeSuccess &= _geometry->initialize(this);
     setBoundingSphere(bs); // ignore bounding sphere set by geometry.
 
@@ -212,7 +238,7 @@ ghoul::opengl::Texture& RenderableModelProjection::baseTexture() const {
     return _projectionComponent.projectionTexture();
 }
 
-void RenderableModelProjection::render(const RenderData& data) {
+void RenderableModelProjection::render(const RenderData& data, RendererTasks&) {
     if (_projectionComponent.needsClearProjection())
         _projectionComponent.clearAllProjections();
 
@@ -275,7 +301,7 @@ void RenderableModelProjection::update(const UpdateData& data) {
     if (_depthFboProgramObject->isDirty())
         _depthFboProgramObject->rebuildFromFile();
 
-    _time = data.time;
+    _time = data.time.j2000Seconds();
 
     if (openspace::ImageSequencer::ref().isReady()) {
         openspace::ImageSequencer::ref().updateSequencer(_time);
@@ -346,7 +372,7 @@ void RenderableModelProjection::attitudeParameters(double time) {
     try {
         _instrumentMatrix = SpiceManager::ref().positionTransformMatrix(_projectionComponent.instrumentId(), _destination, time);
     }
-    catch (const SpiceManager::SpiceException& e) {
+    catch (const SpiceManager::SpiceException&) {
         return;
     }
 
@@ -378,7 +404,7 @@ void RenderableModelProjection::attitudeParameters(double time) {
     try {
         SpiceManager::FieldOfViewResult res = SpiceManager::ref().fieldOfView(_projectionComponent.instrumentId());
         boresight = std::move(res.boresightVector);
-    } catch (const SpiceManager::SpiceException& e) {
+    } catch (const SpiceManager::SpiceException&) {
         return;
     }
 
@@ -396,7 +422,7 @@ void RenderableModelProjection::attitudeParameters(double time) {
     glm::vec3 cpos = position.vec3();
 
     float distance = glm::length(cpos);
-    float radius = getBoundingSphere().lengthf();
+    float radius = boundingSphere();
 
     _projectorMatrix = _projectionComponent.computeProjectorMatrix(
         cpos, boresight, _up, _instrumentMatrix,
@@ -422,9 +448,8 @@ void RenderableModelProjection::project() {
 bool RenderableModelProjection::loadTextures() {
     _baseTexture = nullptr;
     if (_colorTexturePath.value() != "") {
-        _baseTexture = std::move(
-            ghoul::io::TextureReader::ref().loadTexture(absPath(_colorTexturePath))
-        );
+        _baseTexture = ghoul::io::TextureReader::ref().loadTexture(absPath(_colorTexturePath))
+        ;
         if (_baseTexture) {
             LDEBUG("Loaded texture from '" << absPath(_colorTexturePath) << "'");
             _baseTexture->uploadTexture();

@@ -24,6 +24,7 @@
 
 #include <modules/space/spacemodule.h>
 
+#include <openspace/documentation/documentation.h>
 #include <openspace/rendering/renderable.h>
 #include <openspace/rendering/screenspacerenderable.h>
 #include <openspace/util/factorymanager.h>
@@ -44,9 +45,7 @@
 
 namespace openspace {
 
-SpaceModule::SpaceModule()
-    : OpenSpaceModule("Space")
-{}
+SpaceModule::SpaceModule() : OpenSpaceModule(Name) {}
 
 void SpaceModule::internalInitialize() {
     FactoryManager::ref().addFactory(
@@ -79,12 +78,16 @@ void SpaceModule::internalInitialize() {
     fPlanetGeometry->registerClass<planetgeometry::SimpleSphereGeometry>("SimpleSphere");
 }
 
-std::vector<Documentation> SpaceModule::documentations() const {
+std::vector<documentation::Documentation> SpaceModule::documentations() const {
     return {
+        RenderableConstellationBounds::Documentation(),
+        RenderablePlanet::Documentation(),
+        RenderableRings::Documentation(),
+        RenderableStars::Documentation(),
         SpiceRotation::Documentation(),
         SpiceTranslation::Documentation(),
-        RenderableRings::Documentation(),
-        planetgeometry::PlanetGeometry::Documentation()
+        planetgeometry::PlanetGeometry::Documentation(),
+        planetgeometry::SimpleSphereGeometry::Documentation()
     };
 }
 

@@ -25,18 +25,14 @@
 #ifndef __OPENSPACE_MODULE_GLOBEBROWSING___CHUNKCULLER___H__
 #define __OPENSPACE_MODULE_GLOBEBROWSING___CHUNKCULLER___H__
 
-namespace openspace {
+namespace openspace { struct RenderData; }
+namespace openspace::globebrowsing { class Chunk; }
 
-struct RenderData;
-
-namespace globebrowsing {
-
-class Chunk;
-
-namespace culling {
+namespace openspace::globebrowsing::culling {
 
 class ChunkCuller {
 public:
+    virtual ~ChunkCuller() = default;
     /**
      * Determine if the Chunk is cullable. That is return true if removing the
      * Chunk 'culling it' will not have any result on the final rendering. Culling
@@ -45,8 +41,6 @@ public:
     virtual bool isCullable(const Chunk& chunk, const RenderData& renderData) = 0;
 };
 
-} // namespace culling
-} // namespace globebrowsing
-} // namespace openspace
+} // namespace openspace::globebrowsing::culling
 
 #endif // __OPENSPACE_MODULE_GLOBEBROWSING___CHUNKCULLER___H__
