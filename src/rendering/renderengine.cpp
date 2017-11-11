@@ -1038,6 +1038,7 @@ void RenderEngine::renderInformation() {
 
 #ifdef OPENSPACE_MODULE_SPACECRAFTINSTRUMENTS_ENABLED
     bool hasNewHorizons = scene()->sceneGraphNode("NewHorizons");
+    bool hasVCO = scene()->sceneGraphNode("VCO");
     double currentTime = OsEng.timeManager().time().j2000Seconds();
 
     //if (MissionManager::ref().hasCurrentMission()) {
@@ -1148,6 +1149,31 @@ void RenderEngine::renderInformation() {
                     // @CLEANUP:  This is bad as it will discard all exceptions
                     // without telling us about it! ---abock
                 }
+            }else if (hasVCO) {
+                try {
+                    double lt;
+                    glm::dvec3 p =
+                        SpiceManager::ref().targetPosition("VENUS", "VCO", "GALACTIC", {}, currentTime, lt);
+                    psc nhPos = PowerScaledCoordinate::CreatePowerScaledCoordinate(p.x, p.y, p.z);
+                    float a, b;
+                    glm::dvec3 radii;
+                    SpiceManager::ref().getValue("VENUS", "RADII", radii);
+                    a = static_cast<float>(radii.x);
+                    b = static_cast<float>(radii.y);
+                    float radius = (a + b) / 2.f;
+                    float distToSurf = glm::length(nhPos.vec3()) - radius;
+
+                    RenderFont(*_fontInfo,
+                               penPosition,
+                               "Distance to Venus: % .1f (KM)",
+                               distToSurf
+                    );
+                    penPosition.y -= _fontInfo->height();
+                }
+                catch (...) {
+                    // @CLEANUP:  This is bad as it will discard all exceptions
+                    // without telling us about it! ---abock
+                }
             }
 
             double remaining = openspace::ImageSequencer::ref().getNextCaptureTime() - currentTime;
@@ -1216,7 +1242,7 @@ void RenderEngine::renderInformation() {
                     hh.c_str(), mm.c_str(), ss.c_str()
                     );
 
-#if 0
+#if 1
 // Why is it (2) in the original? ---abock
                 //std::pair<double, std::vector<std::string>> incidentTargets = ImageSequencer::ref().getIncidentTargetList(0);
                 //std::pair<double, std::vector<std::string>> incidentTargets = ImageSequencer::ref().getIncidentTargetList(2);
