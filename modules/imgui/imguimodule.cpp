@@ -59,7 +59,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
         [&](){
             LDEBUGC("ImGUIModule", "Initializing GUI");
             gui.initialize();
-            
+
             gui._globalProperty.setSource(
                 []() {
                     std::vector<properties::PropertyOwner*> res = {
@@ -73,7 +73,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
                     return res;
                 }
             );
-            
+
             gui._screenSpaceProperty.setSource(
                 []() {
                    const std::vector<ScreenSpaceRenderable*>& ssr =
@@ -81,7 +81,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
                    return std::vector<properties::PropertyOwner*>(ssr.begin(), ssr.end());
                 }
             );
-            
+
             gui._property.setSource(
                 []() {
                     const std::vector<SceneGraphNode*>& nodes =
@@ -122,7 +122,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             );
         }
     );
-    
+
     OsEng.registerModuleCallback(
         OpenSpaceEngine::CallbackOption::Deinitialize,
         [&](){
@@ -130,7 +130,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             gui.deinitialize();
         }
     );
-    
+
     OsEng.registerModuleCallback(
         OpenSpaceEngine::CallbackOption::InitializeGL,
         [&](){
@@ -138,7 +138,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             gui.initializeGL();
         }
     );
-    
+
     OsEng.registerModuleCallback(
         OpenSpaceEngine::CallbackOption::DeinitializeGL,
         [&](){
@@ -148,26 +148,22 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
     );
 
     OsEng.registerModuleCallback(
-        // This is done in the PostDraw phase so that it will render it on top of
-        // everything else in the case of fisheyes. With this being in the Render callback
-        // the GUI would be rendered on top of each of the cube faces
-        OpenSpaceEngine::CallbackOption::PostDraw,
-        [&](){
+        OpenSpaceEngine::CallbackOption::Draw2D,
+        [&]() {
             WindowWrapper& wrapper = OsEng.windowWrapper();
             bool showGui = wrapper.hasGuiWindow() ? wrapper.isGuiWindow() : true;
-            if (wrapper.isMaster() && showGui ) {
+            if (wrapper.isMaster() && showGui) {
                 glm::vec2 mousePosition = wrapper.mousePosition();
-                //glm::ivec2 drawBufferResolution = _windowWrapper->currentDrawBufferResolution();
                 glm::ivec2 windowSize = wrapper.currentWindowSize();
                 uint32_t mouseButtons = wrapper.mouseButtons(2);
-                
+
                 double dt = std::max(wrapper.averageDeltaTime(), 0.0);
                 if (touchInput.active && mouseButtons == 0) {
                     mouseButtons = touchInput.action;
                     mousePosition = touchInput.pos;
                 }
-                // We don't do any collection of immediate mode user interface, so it is
-                // fine to open and close a frame immediately
+                // We don't do any collection of immediate mode user interface, so it
+                // is fine to open and close a frame immediately
                 gui.startFrame(
                     static_cast<float>(dt),
                     glm::vec2(windowSize),
@@ -180,7 +176,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             }
         }
     );
-    
+
     OsEng.registerModuleKeyboardCallback(
         [&](Key key, KeyModifier mod, KeyAction action) -> bool {
             if (gui.isEnabled()) {
@@ -191,7 +187,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             }
         }
     );
-    
+
     OsEng.registerModuleCharCallback(
         [&](unsigned int codepoint, KeyModifier modifier) -> bool {
             if (gui.isEnabled()) {
@@ -202,7 +198,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             }
         }
     );
-    
+
     OsEng.registerModuleMouseButtonCallback(
         [&](MouseButton button, MouseAction action) -> bool {
             if (gui.isEnabled()) {
@@ -213,7 +209,7 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
             }
         }
     );
-    
+
     OsEng.registerModuleMouseScrollWheelCallback(
         [&](double, double posY) -> bool {
             if (gui.isEnabled()) {
@@ -225,5 +221,5 @@ ImGUIModule::ImGUIModule() : OpenSpaceModule(Name) {
         }
     );
 }
-    
+
 } // namespace openspace

@@ -46,6 +46,7 @@
 #include <modules/base/translation/luatranslation.h>
 #include <modules/base/translation/statictranslation.h>
 
+#include <modules/base/rotation/fixedrotation.h>
 #include <modules/base/rotation/luarotation.h>
 #include <modules/base/rotation/staticrotation.h>
 
@@ -68,12 +69,12 @@ void BaseModule::internalInitialize() {
         "ScreenSpaceRenderable"
     );
 
-    auto fScreenSpaceRenderable = FactoryManager::ref().factory<ScreenSpaceRenderable>();
-    ghoul_assert(fScreenSpaceRenderable, "ScreenSpaceRenderable factory was not created");
+    auto fSsRenderable = FactoryManager::ref().factory<ScreenSpaceRenderable>();
+    ghoul_assert(fSsRenderable, "ScreenSpaceRenderable factory was not created");
 
-    fScreenSpaceRenderable->registerClass<ScreenSpaceImageLocal>("ScreenSpaceImageLocal");
-    fScreenSpaceRenderable->registerClass<ScreenSpaceImageOnline>("ScreenSpaceImageOnline");
-    fScreenSpaceRenderable->registerClass<ScreenSpaceFramebuffer>("ScreenSpaceFramebuffer");
+    fSsRenderable->registerClass<ScreenSpaceImageLocal>("ScreenSpaceImageLocal");
+    fSsRenderable->registerClass<ScreenSpaceImageOnline>("ScreenSpaceImageOnline");
+    fSsRenderable->registerClass<ScreenSpaceFramebuffer>("ScreenSpaceFramebuffer");
 
     auto fRenderable = FactoryManager::ref().factory<Renderable>();
     ghoul_assert(fRenderable, "Renderable factory was not created");
@@ -94,6 +95,7 @@ void BaseModule::internalInitialize() {
     auto fRotation = FactoryManager::ref().factory<Rotation>();
     ghoul_assert(fRotation, "Rotation factory was not created");
 
+    fRotation->registerClass<FixedRotation>("FixedRotation");
     fRotation->registerClass<LuaRotation>("LuaRotation");
     fRotation->registerClass<StaticRotation>("StaticRotation");
 
@@ -103,9 +105,9 @@ void BaseModule::internalInitialize() {
     fScale->registerClass<LuaScale>("LuaScale");
     fScale->registerClass<StaticScale>("StaticScale");
 
-    auto fModelGeometry = FactoryManager::ref().factory<modelgeometry::ModelGeometry>();
-    ghoul_assert(fModelGeometry, "Model geometry factory was not created");
-    fModelGeometry->registerClass<modelgeometry::MultiModelGeometry>("MultiModelGeometry");
+    auto fGeometry = FactoryManager::ref().factory<modelgeometry::ModelGeometry>();
+    ghoul_assert(fGeometry, "Model geometry factory was not created");
+    fGeometry->registerClass<modelgeometry::MultiModelGeometry>("MultiModelGeometry");
 }
 
 std::vector<documentation::Documentation> BaseModule::documentations() const {
@@ -118,6 +120,7 @@ std::vector<documentation::Documentation> BaseModule::documentations() const {
         ScreenSpaceFramebuffer::Documentation(),
         ScreenSpaceImageLocal::Documentation(),
         ScreenSpaceImageOnline::Documentation(),
+        FixedRotation::Documentation(),
         LuaRotation::Documentation(),
         StaticRotation::Documentation(),
         LuaScale::Documentation(),
