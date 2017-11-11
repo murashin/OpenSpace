@@ -1244,7 +1244,7 @@ void RenderEngine::renderInformation() {
 
 #if 1
 // Why is it (2) in the original? ---abock
-                //std::pair<double, std::vector<std::string>> incidentTargets = ImageSequencer::ref().getIncidentTargetList(0);
+                std::pair<double, std::vector<std::string>> incidentTargets = ImageSequencer::ref().getIncidentTargetList(0);
                 //std::pair<double, std::vector<std::string>> incidentTargets = ImageSequencer::ref().getIncidentTargetList(2);
                 std::string space;
                 glm::vec4 color;
